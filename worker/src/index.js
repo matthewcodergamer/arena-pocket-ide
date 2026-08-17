@@ -1,4 +1,5 @@
-const ARENA_DEFAULT_BASE = 'https://api.preview.arena.ai';
+const GEMINI_DEFAULT_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+const GEMINI_DEFAULT_MODEL = 'gemini-2.5-pro';
 const MAX_BODY_BYTES = 2 * 1024 * 1024;
 const WINDOW_MS = 60_000;
 const buckets = new Map();
@@ -35,10 +36,10 @@ function corsHeaders(origin, env) {
 function safeError(err) {
   const message = String(err?.message || err || 'Unknown error');
   return message
-    .replace(/sk-[A-Za-z0-9_-]+/g, '[redacted]')
+    .replace(/AIza[0-9A-Za-z_-]{20,}/g, '[redacted]')
     .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, 'Bearer [redacted]')
-    .replace(/x-api-key[^\s]*/gi, 'x-api-key [redacted]')
-    .slice(0, 900);
+    .replace(/x-goog-api-key[^\s]*/gi, 'x-goog-api-key [redacted]')
+    .slice(0, 1200);
 }
 
 function rateLimit(request, env) {
@@ -46,110 +47,174 @@ function rateLimit(request, env) {
   const ip = request.headers.get('cf-connecting-ip') || 'unknown';
   const now = Date.now();
   const bucket = buckets.get(ip);
+
   if (!bucket || now - bucket.start >= WINDOW_MS) {
     buckets.set(ip, { start: now, count: 1 });
     return true;
   }
+
   bucket.count += 1;
+
   if (buckets.size > 5000) {
-    for (const [k, v] of buckets) if (now - v.start > WINDOW_MS * 2) buckets.delete(k);
+    for (const [key, value] of buckets) {
+      if (now - value.start > WINDOW_MS * 2) buckets.delete(key);
+    }
   }
+
   return bucket.count <= limit;
-}
-
-function freePolicy(env, requestedModel) {
-  const freeOnly = String(env.ARENA_FREE_ONLY ?? 'true').toLowerCase() !== 'false';
-  const configured = String(env.ARENA_MODEL || '').trim();
-  const model = String(requestedModel || configured || '').trim();
-  if (!model) return { ok: false, freeOnly, error: 'No Arena model is configured. Set ARENA_MODEL in the Worker environment.' };
-
-  const freeModels = splitCsv(env.ARENA_FREE_MODELS || '');
-  if (freeOnly) {
-    if (!freeModels.length) {
-      return {
-        ok: false,
-        freeOnly,
-        error: 'Free Only is enabled, but ARENA_FREE_MODELS is empty. Add only model IDs you have verified as free in your Arena account/portal.'
-      };
-    }
-    if (!freeModels.includes(model)) {
-      return { ok: false, freeOnly, error: `Model "${model}" is not in ARENA_FREE_MODELS. Free Only policy blocked the request.` };
-    }
-  }
-  return { ok: true, freeOnly, model };
 }
 
 async function parseBody(request) {
   const len = Number(request.headers.get('content-length') || 0);
   if (len > MAX_BODY_BYTES) throw new Error('Request body is too large.');
+
   const text = await request.text();
   if (text.length > MAX_BODY_BYTES) throw new Error('Request body is too large.');
-  let body;
-  try { body = JSON.parse(text || '{}'); } catch { throw new Error('Request body must be valid JSON.'); }
-  return body;
+
+  try {
+    return JSON.parse(text || '{}');
+  } catch {
+    throw new Error('Request body must be valid JSON.');
+  }
+}
+
+function contentToText(content) {
+  if (typeof content === 'string') return content;
+
+  if (Array.isArray(content)) {
+    return content.map(part => {
+      if (typeof part === 'string') return part;
+      if (part && typeof part.text === 'string') return part.text;
+      return JSON.stringify(part);
+    }).join('\n');
+  }
+
+  return String(content ?? '');
 }
 
 function validateMessages(messages) {
-  if (!Array.isArray(messages) || !messages.length) throw new Error('messages must be a non-empty array.');
+  if (!Array.isArray(messages) || !messages.length) {
+    throw new Error('messages must be a non-empty array.');
+  }
   if (messages.length > 60) throw new Error('Too many messages.');
-  return messages.map(m => {
-    if (!m || !['user', 'assistant'].includes(m.role)) throw new Error('Each message must have role user or assistant.');
-    const content = typeof m.content === 'string' ? m.content : m.content;
-    if (typeof content !== 'string' && !Array.isArray(content)) throw new Error('Unsupported message content.');
-    return { role: m.role, content };
+
+  return messages.map(message => {
+    if (!message || !['user', 'assistant'].includes(message.role)) {
+      throw new Error('Each message must have role user or assistant.');
+    }
+
+    const text = contentToText(message.content);
+    if (!text.trim()) throw new Error('Message content cannot be empty.');
+
+    return {
+      role: message.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text }]
+    };
   });
 }
 
-async function forwardArena(body, env, signal) {
-  if (!env.ARENA_API_KEY) throw new Error('ARENA_API_KEY is not configured on the Worker.');
-  const policy = freePolicy(env, body.model);
-  if (!policy.ok) {
-    const error = new Error(policy.error);
+function configuredModel(env) {
+  // Intentionally use only the server-configured model.
+  // This prevents a browser client from switching Crain onto a paid model.
+  return String(env.GEMINI_MODEL || GEMINI_DEFAULT_MODEL).trim();
+}
+
+async function forwardGemini(body, env, signal) {
+  if (!env.GEMINI_API_KEY) {
+    const error = new Error('GEMINI_API_KEY is not configured on the Worker.');
     error.status = 503;
     throw error;
   }
 
-  const messages = validateMessages(body.messages);
-  const payload = {
-    model: policy.model,
-    max_tokens: Math.min(Math.max(Number(body.max_tokens || 4096), 64), 16384),
-    messages,
-    stream: false
-  };
-  if (typeof body.system === 'string' && body.system.trim()) payload.system = body.system.slice(0, 120_000);
-  if (typeof body.temperature === 'number') payload.temperature = Math.max(0, Math.min(1, body.temperature));
+  const model = configuredModel(env);
+  if (!model) {
+    const error = new Error('No Gemini model is configured.');
+    error.status = 503;
+    throw error;
+  }
 
-  const base = String(env.ARENA_API_BASE || ARENA_DEFAULT_BASE).replace(/\/$/, '');
-  const response = await fetch(`${base}/v1/messages`, {
+  const contents = validateMessages(body.messages);
+
+  const generationConfig = {
+    maxOutputTokens: Math.min(Math.max(Number(body.max_tokens || 8192), 64), 16384),
+    responseMimeType: 'application/json'
+  };
+
+  if (typeof body.temperature === 'number') {
+    generationConfig.temperature = Math.max(0, Math.min(1, body.temperature));
+  }
+
+  const payload = {
+    contents,
+    generationConfig
+  };
+
+  if (typeof body.system === 'string' && body.system.trim()) {
+    payload.systemInstruction = {
+      parts: [{ text: body.system.slice(0, 120_000) }]
+    };
+  }
+
+  const base = String(env.GEMINI_API_BASE || GEMINI_DEFAULT_BASE).replace(/\/$/, '');
+  const endpoint = `${base}/models/${encodeURIComponent(model)}:generateContent`;
+
+  const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
-      'anthropic-version': '2023-06-01',
-      'x-api-key': env.ARENA_API_KEY
+      'x-goog-api-key': env.GEMINI_API_KEY
     },
     body: JSON.stringify(payload),
     signal
   });
 
-  const text = await response.text();
+  const raw = await response.text();
   let parsed;
-  try { parsed = JSON.parse(text); } catch { parsed = { raw: text.slice(0, 2000) }; }
+
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    parsed = { raw: raw.slice(0, 3000) };
+  }
+
   if (!response.ok) {
-    const msg = parsed?.error?.message || parsed?.message || `Arena API returned HTTP ${response.status}`;
-    const error = new Error(msg);
+    const message =
+      parsed?.error?.message ||
+      parsed?.message ||
+      `Gemini API returned HTTP ${response.status}`;
+    const error = new Error(message);
     error.status = response.status;
     throw error;
   }
 
-  const blocks = Array.isArray(parsed?.content) ? parsed.content : [];
-  const output = blocks.filter(b => b?.type === 'text' && typeof b.text === 'string').map(b => b.text).join('\n');
+  const candidate = Array.isArray(parsed?.candidates) ? parsed.candidates[0] : null;
+  const parts = Array.isArray(candidate?.content?.parts) ? candidate.content.parts : [];
+  const text = parts
+    .filter(part => typeof part?.text === 'string')
+    .map(part => part.text)
+    .join('\n')
+    .trim();
+
+  if (!text) {
+    const blockReason = parsed?.promptFeedback?.blockReason;
+    const finishReason = candidate?.finishReason;
+    const error = new Error(
+      blockReason
+        ? `Gemini blocked the request: ${blockReason}`
+        : `Gemini returned no text${finishReason ? ` (finish reason: ${finishReason})` : ''}.`
+    );
+    error.status = 502;
+    throw error;
+  }
+
   return {
-    text: output,
-    model: parsed?.model || policy.model,
-    stop_reason: parsed?.stop_reason || null,
-    usage: parsed?.usage || null,
-    freeOnly: policy.freeOnly,
-    usageNotice: 'Usage information unavailable from provider unless your Arena account/portal exposes it.'
+    text,
+    model,
+    stop_reason: candidate?.finishReason || null,
+    usage: parsed?.usageMetadata || null,
+    provider: 'Google Gemini',
+    freeOnly: true,
+    usageNotice: 'Crain is locked to the server-configured Gemini model. Free-tier quotas and availability are controlled by Google.'
   };
 }
 
@@ -164,39 +229,55 @@ export default {
       return new Response(null, { status: 204, headers: cors });
     }
 
-    if (!originAllowed(origin, env)) return json({ error: 'Origin not allowed.' }, 403, cors);
+    if (!originAllowed(origin, env)) {
+      return json({ error: 'Origin not allowed.' }, 403, cors);
+    }
 
     if (url.pathname === '/health' && request.method === 'GET') {
-      const freeOnly = String(env.ARENA_FREE_ONLY ?? 'true').toLowerCase() !== 'false';
-      const freeModelsConfigured = splitCsv(env.ARENA_FREE_MODELS || '').length;
       return json({
         ok: true,
-        provider: 'Arena.ai',
-        apiBase: String(env.ARENA_API_BASE || ARENA_DEFAULT_BASE),
-        keyConfigured: Boolean(env.ARENA_API_KEY),
-        modelConfigured: Boolean(env.ARENA_MODEL),
-        freeOnly,
-        freeModelsConfigured,
-        usageNotice: 'Usage information unavailable from provider unless your Arena account/portal exposes it.'
+        provider: 'Google Gemini',
+        model: configuredModel(env),
+        keyConfigured: Boolean(env.GEMINI_API_KEY),
+        modelConfigured: Boolean(configuredModel(env)),
+        freeOnly: true,
+        usageNotice: 'Free-tier quotas and availability are controlled by Google.'
       }, 200, cors);
     }
 
     if (url.pathname === '/agent' && request.method === 'POST') {
-      if (!rateLimit(request, env)) return json({ error: 'Too many requests. Try again in about a minute.' }, 429, cors);
+      if (!rateLimit(request, env)) {
+        return json(
+          { error: 'Too many requests. Try again in about a minute.' },
+          429,
+          cors
+        );
+      }
+
       try {
         const body = await parseBody(request);
         const controller = new AbortController();
-        const timeoutMs = Math.min(Math.max(Number(env.REQUEST_TIMEOUT_MS || 90_000), 5_000), 120_000);
+        const timeoutMs = Math.min(
+          Math.max(Number(env.REQUEST_TIMEOUT_MS || 90_000), 5_000),
+          120_000
+        );
+
         const timer = setTimeout(() => controller.abort('timeout'), timeoutMs);
-        request.signal.addEventListener('abort', () => controller.abort('client aborted'), { once: true });
+        request.signal.addEventListener(
+          'abort',
+          () => controller.abort('client aborted'),
+          { once: true }
+        );
+
         try {
-          const result = await forwardArena(body, env, controller.signal);
+          const result = await forwardGemini(body, env, controller.signal);
           return json(result, 200, cors);
         } finally {
           clearTimeout(timer);
         }
       } catch (err) {
-        const status = err?.name === 'AbortError' ? 504 : Number(err?.status || 500);
+        const status =
+          err?.name === 'AbortError' ? 504 : Number(err?.status || 500);
         return json({ error: safeError(err) }, status, cors);
       }
     }
