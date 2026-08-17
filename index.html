@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0c0c0f" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Arena IDE" />
+  <meta name="description" content="A mobile-first browser IDE with local projects, live preview, GitHub sync, and an Arena.ai coding agent." />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+  <link rel="icon" href="./icons/icon-192.png" />
+  <link rel="stylesheet" href="./styles.css" />
+  <title>Arena Pocket IDE</title>
+</head>
+<body>
+  <noscript>This IDE requires JavaScript.</noscript>
+
+  <div id="app" class="app-shell" data-view="editor">
+    <div id="desktopRail" class="desktop-rail" aria-label="Primary tools"></div>
+
+    <aside id="explorerPanel" class="explorer-panel panel-surface" aria-label="Explorer">
+      <header class="pane-header">
+        <button class="icon-btn mobile-only" id="explorerMenuBtn" aria-label="Open project menu" data-icon="menu"></button>
+        <div class="pane-title-wrap">
+          <h1 class="pane-title">Explorer</h1>
+          <span id="explorerProjectName" class="pane-subtitle"></span>
+        </div>
+        <div class="header-actions">
+          <button class="icon-btn" id="explorerSearchBtn" aria-label="Search files" data-icon="search"></button>
+          <button class="icon-btn" id="newFileBtn" aria-label="New file" data-icon="filePlus"></button>
+          <button class="icon-btn" id="newFolderBtn" aria-label="New folder" data-icon="folderPlus"></button>
+          <button class="icon-btn" id="explorerMoreBtn" aria-label="More explorer actions" data-icon="more"></button>
+        </div>
+      </header>
+      <div id="explorerSearchWrap" class="search-strip hidden">
+        <input id="explorerSearchInput" type="search" inputmode="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Search files…" />
+        <button class="icon-btn compact" id="explorerSearchClose" aria-label="Close search" data-icon="close"></button>
+      </div>
+      <div id="explorerTree" class="explorer-tree scroll-region" role="tree"></div>
+      <footer class="explorer-footer">
+        <button id="projectRootButton" class="footer-root-button">
+          <span class="icon" data-icon="back"></span>
+          <span id="projectRootLabel">Root</span>
+        </button>
+        <button id="copyProjectPathBtn" class="icon-btn" aria-label="Copy project information" data-icon="copy"></button>
+      </footer>
+    </aside>
+
+    <main class="main-stage">
+      <header id="mobileHeader" class="mobile-header pane-header">
+        <button class="icon-btn" id="hamburgerBtn" aria-label="Open menu" data-icon="menu"></button>
+        <div class="pane-title-wrap">
+          <h1 id="mobileTitle" class="pane-title">Editor</h1>
+          <span id="mobileSubtitle" class="pane-subtitle"></span>
+        </div>
+        <div id="mobileHeaderActions" class="header-actions"></div>
+      </header>
+
+      <section id="editorView" class="workspace-view editor-view" aria-label="Editor">
+        <div id="editorEmpty" class="empty-state hidden">
+          <div class="empty-icon" data-icon="code"></div>
+          <h2>No file open</h2>
+          <p>Select a file from Explorer or create a new one.</p>
+          <button id="emptyNewFileBtn" class="primary-btn">New File</button>
+        </div>
+        <div id="editorHost" class="editor-host"></div>
+        <div id="editorAccessory" class="editor-accessory hidden" aria-label="Coding keyboard shortcuts"></div>
+        <div id="saveStatus" class="save-status" aria-live="polite">Saved</div>
+      </section>
+
+      <section id="browserView" class="workspace-view browser-view hidden" aria-label="Browser preview">
+        <div class="browser-toolbar">
+          <button class="icon-btn" id="previewBackBtn" aria-label="Back" data-icon="back"></button>
+          <button class="icon-btn" id="previewRefreshBtn" aria-label="Refresh preview" data-icon="refresh"></button>
+          <div class="preview-url" id="previewUrl">project://index.html</div>
+          <button class="icon-btn" id="previewFullscreenBtn" aria-label="Fullscreen preview" data-icon="maximize"></button>
+          <button class="icon-btn" id="previewConsoleBtn" aria-label="Preview console" data-icon="console"></button>
+        </div>
+        <div class="preview-stage">
+          <iframe id="previewFrame" title="Project preview" sandbox="allow-scripts allow-forms allow-modals allow-pointer-lock allow-downloads"></iframe>
+        </div>
+        <div id="previewConsoleDrawer" class="console-drawer hidden">
+          <div class="console-drawer-header">
+            <strong>Preview Console</strong>
+            <div class="header-actions">
+              <button id="clearConsoleBtn" class="text-btn">Clear</button>
+              <button id="closeConsoleBtn" class="icon-btn compact" aria-label="Close console" data-icon="close"></button>
+            </div>
+          </div>
+          <div id="previewConsoleList" class="console-list scroll-region"></div>
+        </div>
+      </section>
+
+      <section id="terminalView" class="workspace-view terminal-view hidden" aria-label="Terminal">
+        <div id="terminalOutput" class="terminal-output scroll-region" role="log" aria-live="polite"></div>
+        <form id="terminalForm" class="terminal-input-row">
+          <span id="terminalPrompt" class="terminal-prompt">~/project $</span>
+          <input id="terminalInput" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="text" aria-label="Terminal command" />
+        </form>
+      </section>
+
+      <section id="aiView" class="workspace-view ai-view hidden" aria-label="AI coding agent">
+        <div class="ai-statusbar">
+          <div>
+            <span class="status-dot" id="aiStatusDot"></span>
+            <span id="aiStatusText">Arena not connected</span>
+          </div>
+          <div class="ai-policy">Free Only</div>
+        </div>
+        <div id="aiMessages" class="ai-messages scroll-region"></div>
+        <div id="aiProposalPanel" class="ai-proposal-panel hidden"></div>
+        <div class="ai-composer-wrap">
+          <div class="ai-context-row">
+            <button id="aiCurrentFileToggle" class="context-chip active">Current File</button>
+            <button id="aiProjectToggle" class="context-chip active">Project</button>
+            <button id="aiConsoleToggle" class="context-chip">Console</button>
+            <button id="aiUndoBtn" class="context-chip" disabled>Undo AI Changes</button>
+          </div>
+          <div class="ai-composer">
+            <textarea id="aiInput" rows="1" placeholder="Ask Arena to inspect or change your project…" enterkeyhint="send"></textarea>
+            <button id="aiStopBtn" class="icon-btn hidden" aria-label="Stop agent" data-icon="stop"></button>
+            <button id="aiSendBtn" class="send-btn" aria-label="Send to Arena" data-icon="send"></button>
+          </div>
+        </div>
+      </section>
+
+      <section id="gitView" class="workspace-view git-view hidden" aria-label="GitHub sync">
+        <div class="git-layout scroll-region">
+          <div class="settings-card">
+            <div class="settings-card-title">GitHub Repository</div>
+            <label>Repository
+              <input id="gitRepoInput" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="owner/repository" />
+            </label>
+            <label>Branch
+              <input id="gitBranchInput" autocomplete="off" autocapitalize="off" spellcheck="false" value="main" />
+            </label>
+            <label>Token <span class="muted">(kept in this browser session only)</span>
+              <input id="gitTokenInput" type="password" autocomplete="off" placeholder="github_pat_…" />
+            </label>
+            <div class="button-row">
+              <button id="gitPullBtn" class="secondary-btn">Pull / Import</button>
+              <button id="gitRefreshBtn" class="secondary-btn">Refresh Status</button>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-card-title row-between"><span>Changes</span><span id="gitChangeCount" class="count-badge">0</span></div>
+            <div id="gitChangesList" class="git-changes"></div>
+          </div>
+
+          <div class="settings-card">
+            <label>Commit message
+              <textarea id="gitCommitInput" rows="2" placeholder="Update project"></textarea>
+            </label>
+            <button id="gitPushBtn" class="primary-btn full-width">Commit & Push</button>
+            <div id="gitStatusMessage" class="inline-status"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="tabsView" class="workspace-view tabs-view hidden" aria-label="Open tabs">
+        <div id="tabsList" class="tabs-list scroll-region"></div>
+      </section>
+
+      <section id="settingsView" class="workspace-view settings-view hidden" aria-label="Settings">
+        <div class="settings-scroll scroll-region">
+          <div class="settings-card">
+            <div class="settings-card-title">Arena.ai</div>
+            <label>Secure proxy URL
+              <input id="arenaProxyInput" autocomplete="url" autocapitalize="off" spellcheck="false" placeholder="https://your-worker.workers.dev" />
+            </label>
+            <label>Model <span class="muted">(optional; worker may define one)</span>
+              <input id="arenaModelInput" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Arena model ID" />
+            </label>
+            <div class="button-row">
+              <button id="arenaTestBtn" class="secondary-btn">Test Connection</button>
+              <button id="arenaSaveBtn" class="primary-btn">Save</button>
+            </div>
+            <p class="help-text">The browser never stores your Arena API key. Put the key only in the Cloudflare Worker secret.</p>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-card-title">Editor</div>
+            <label class="toggle-row"><span>Programming accessory bar</span><input id="accessoryToggle" type="checkbox" checked /></label>
+            <label class="toggle-row"><span>Word wrap</span><input id="wordWrapToggle" type="checkbox" checked /></label>
+            <label>Font size
+              <input id="fontSizeRange" type="range" min="12" max="20" step="1" value="14" />
+            </label>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-card-title">Project Data</div>
+            <div class="button-row wrap">
+              <button id="importFilesBtn" class="secondary-btn">Import Files</button>
+              <button id="importZipBtn" class="secondary-btn">Import ZIP</button>
+              <button id="exportZipBtn" class="secondary-btn">Export ZIP</button>
+              <button id="newProjectBtn" class="secondary-btn">New Project</button>
+            </div>
+          </div>
+
+          <div class="settings-card danger-card">
+            <div class="settings-card-title">Danger Zone</div>
+            <button id="resetProjectBtn" class="danger-btn">Reset Current Project</button>
+          </div>
+
+          <div class="settings-card diagnostics-card">
+            <div class="settings-card-title">Diagnostics</div>
+            <pre id="diagnosticsText"></pre>
+            <button id="copyDiagnosticsBtn" class="secondary-btn">Copy Diagnostics</button>
+          </div>
+        </div>
+      </section>
+
+      <nav id="mobileNav" class="mobile-nav" aria-label="Primary navigation"></nav>
+    </main>
+
+    <aside id="desktopUtility" class="desktop-utility panel-surface hidden" aria-label="Utility panel"></aside>
+  </div>
+
+  <div id="drawerBackdrop" class="backdrop hidden"></div>
+  <aside id="appDrawer" class="app-drawer hidden" aria-label="Project menu">
+    <div class="drawer-header">
+      <div>
+        <strong id="drawerProjectName">Project</strong>
+        <div class="muted" id="drawerProjectMeta"></div>
+      </div>
+      <button id="drawerCloseBtn" class="icon-btn" aria-label="Close menu" data-icon="close"></button>
+    </div>
+    <div class="drawer-list">
+      <button data-drawer-action="explorer"><span data-icon="folder"></span>Explorer</button>
+      <button data-drawer-action="projects"><span data-icon="projects"></span>Projects</button>
+      <button data-drawer-action="settings"><span data-icon="settings"></span>Settings</button>
+      <button data-drawer-action="diagnostics"><span data-icon="info"></span>Diagnostics</button>
+    </div>
+  </aside>
+
+  <dialog id="textPromptDialog" class="modal-dialog">
+    <form method="dialog" id="textPromptForm" class="modal-card">
+      <h2 id="textPromptTitle">New File</h2>
+      <input id="textPromptInput" autocomplete="off" autocapitalize="off" spellcheck="false" />
+      <div id="textPromptError" class="form-error"></div>
+      <div class="modal-actions">
+        <button value="cancel" class="text-btn">Cancel</button>
+        <button id="textPromptSubmit" value="default" class="primary-btn">Create</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="confirmDialog" class="modal-dialog">
+    <form method="dialog" class="modal-card">
+      <h2 id="confirmTitle">Confirm</h2>
+      <p id="confirmText"></p>
+      <div class="modal-actions">
+        <button value="cancel" class="text-btn">Cancel</button>
+        <button id="confirmOk" value="default" class="danger-btn">Continue</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="contextMenu" class="context-menu hidden" role="menu"></div>
+  <div id="toastHost" class="toast-host" aria-live="polite"></div>
+
+  <input id="filePicker" class="hidden" type="file" multiple />
+  <input id="zipPicker" class="hidden" type="file" accept=".zip,application/zip" />
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
