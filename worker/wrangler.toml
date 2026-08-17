@@ -1,0 +1,15 @@
+name = "arena-pocket-ide-proxy"
+main = "src/index.js"
+compatibility_date = "2026-08-01"
+
+[vars]
+# Comma-separated exact frontend origins. Add localhost during development.
+ALLOWED_ORIGIN = "https://YOUR-USERNAME.github.io"
+ARENA_API_BASE = "https://api.preview.arena.ai"
+ARENA_FREE_ONLY = "true"
+# IMPORTANT: populate this only with Arena model IDs that YOU verified are free for your account.
+ARENA_FREE_MODELS = ""
+# Optional default. Must also appear in ARENA_FREE_MODELS while Free Only is enabled.
+ARENA_MODEL = ""
+REQUESTS_PER_MINUTE = "20"
+REQUEST_TIMEOUT_MS = "90000"

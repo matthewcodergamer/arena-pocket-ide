@@ -1,0 +1,10 @@
+{
+  "name": "arena-pocket-ide",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Static mobile-first browser IDE frontend",
+  "scripts": {
+    "serve": "npx serve -l 8080 .",
+    "check": "node --check app.js && node --check worker/src/index.js"
+  }
+}
