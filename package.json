@@ -1,8 +1,8 @@
 {
-  "name": "arena-pocket-ide",
-  "version": "1.0.0",
+  "name": "x-coder",
+  "version": "3.0.0",
   "private": true,
-  "description": "Static mobile-first browser IDE frontend",
+  "description": "X Coder mobile-first browser IDE with a multi-provider AI router",
   "scripts": {
     "serve": "npx serve -l 8080 .",
     "check": "node --check app.js && node --check worker/src/index.js"

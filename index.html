@@ -7,13 +7,14 @@
   <meta name="color-scheme" content="dark" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Arena IDE" />
-  <meta name="description" content="A mobile-first browser IDE with local projects, live preview, GitHub sync, and an Arena.ai coding agent." />
+  <meta name="apple-mobile-web-app-title" content="X Coder" />
+  <meta name="description" content="X Coder is a mobile-first browser IDE with local projects, live preview, GitHub sync, and a multi-provider AI coding agent." />
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
   <link rel="icon" href="./icons/icon-192.png" />
   <link rel="stylesheet" href="./styles.css" />
-  <title>Arena Pocket IDE</title>
+  <script src="https://js.puter.com/v2/" defer></script>
+  <title>X Coder</title>
 </head>
 <body>
   <noscript>This IDE requires JavaScript.</noscript>
@@ -30,11 +31,12 @@
         </div>
         <div class="header-actions">
           <button class="icon-btn" id="explorerSearchBtn" aria-label="Search files" data-icon="search"></button>
-          <button class="icon-btn" id="newFileBtn" aria-label="New file" data-icon="filePlus"></button>
-          <button class="icon-btn" id="newFolderBtn" aria-label="New folder" data-icon="folderPlus"></button>
+          <button class="icon-btn" id="explorerFilterBtn" aria-label="Explorer options" data-icon="sliders"></button>
           <button class="icon-btn" id="explorerMoreBtn" aria-label="More explorer actions" data-icon="more"></button>
         </div>
       </header>
+      <button class="hidden" id="newFileBtn" aria-hidden="true" tabindex="-1"></button>
+      <button class="hidden" id="newFolderBtn" aria-hidden="true" tabindex="-1"></button>
       <div id="explorerSearchWrap" class="search-strip hidden">
         <input id="explorerSearchInput" type="search" inputmode="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Search files…" />
         <button class="icon-btn compact" id="explorerSearchClose" aria-label="Close search" data-icon="close"></button>
@@ -104,11 +106,13 @@
 
       <section id="aiView" class="workspace-view ai-view hidden" aria-label="AI coding agent">
         <div class="ai-statusbar">
-          <div>
+          <div class="ai-status-copy">
             <span class="status-dot" id="aiStatusDot"></span>
-            <span id="aiStatusText">Arena not connected</span>
+            <span id="aiStatusText">X Coder AI offline</span>
           </div>
-          <div class="ai-policy">Free Only</div>
+          <select id="aiModelSelect" class="ai-model-select" aria-label="AI model">
+            <option value="auto">Auto Router</option>
+          </select>
         </div>
         <div id="aiMessages" class="ai-messages scroll-region"></div>
         <div id="aiProposalPanel" class="ai-proposal-panel hidden"></div>
@@ -118,11 +122,12 @@
             <button id="aiProjectToggle" class="context-chip active">Project</button>
             <button id="aiConsoleToggle" class="context-chip">Console</button>
             <button id="aiUndoBtn" class="context-chip" disabled>Undo AI Changes</button>
+            <button id="aiRedoBtn" class="context-chip" disabled>Redo</button>
           </div>
           <div class="ai-composer">
-            <textarea id="aiInput" rows="1" placeholder="Ask Arena to inspect or change your project…" enterkeyhint="send"></textarea>
+            <textarea id="aiInput" rows="1" placeholder="Ask X Coder to inspect or change your project…" enterkeyhint="send"></textarea>
             <button id="aiStopBtn" class="icon-btn hidden" aria-label="Stop agent" data-icon="stop"></button>
-            <button id="aiSendBtn" class="send-btn" aria-label="Send to Arena" data-icon="send"></button>
+            <button id="aiSendBtn" class="send-btn" aria-label="Send to X Coder AI" data-icon="send"></button>
           </div>
         </div>
       </section>
@@ -168,18 +173,27 @@
       <section id="settingsView" class="workspace-view settings-view hidden" aria-label="Settings">
         <div class="settings-scroll scroll-region">
           <div class="settings-card">
-            <div class="settings-card-title">Arena.ai</div>
-            <label>Secure proxy URL
+            <div class="settings-card-title">X Coder AI Router</div>
+            <label>Secure Worker URL
               <input id="arenaProxyInput" autocomplete="url" autocapitalize="off" spellcheck="false" placeholder="https://your-worker.workers.dev" />
             </label>
-            <label>Model <span class="muted">(optional; worker may define one)</span>
-              <input id="arenaModelInput" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Arena model ID" />
-            </label>
-            <div class="button-row">
-              <button id="arenaTestBtn" class="secondary-btn">Test Connection</button>
+            <div class="button-row wrap">
+              <button id="arenaTestBtn" class="secondary-btn">Test Providers</button>
               <button id="arenaSaveBtn" class="primary-btn">Save</button>
             </div>
-            <p class="help-text">The browser never stores your Arena API key. Put the key only in the Cloudflare Worker secret.</p>
+            <div id="aiProviderList" class="ai-provider-list" aria-live="polite"></div>
+            <pre id="aiUsageSummary" class="ai-usage-summary">No AI usage recorded for this project yet.</pre>
+            <p class="help-text">API keys stay encrypted in your Cloudflare Worker. X Coder only stores the Worker URL and your preferred model on this device.</p>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-card-title row-between"><span>Puter AI</span><span id="puterStatus" class="muted">Checking…</span></div>
+            <p class="help-text">Puter adds its own GPT, Claude, Gemini and other models directly in the browser. It does not need a Cloudflare API key.</p>
+            <div class="button-row wrap">
+              <button id="puterSignInBtn" class="secondary-btn">Sign in to Puter</button>
+              <button id="puterRefreshBtn" class="secondary-btn">Refresh Puter Models</button>
+            </div>
+            <pre id="puterUsageText" class="puter-usage">Usage unavailable</pre>
           </div>
 
           <div class="settings-card">
@@ -224,7 +238,7 @@
   <aside id="appDrawer" class="app-drawer hidden" aria-label="Project menu">
     <div class="drawer-header">
       <div>
-        <strong id="drawerProjectName">Project</strong>
+        <div class="drawer-brand"><span class="xcoder-mark">X</span><div><strong>X Coder</strong><div id="drawerProjectName" class="drawer-project-name">Project</div></div></div>
         <div class="muted" id="drawerProjectMeta"></div>
       </div>
       <button id="drawerCloseBtn" class="icon-btn" aria-label="Close menu" data-icon="close"></button>

@@ -1,4 +1,4 @@
-const VERSION = 'arena-pocket-ide-v1.0.0';
+const VERSION = 'xcoder-v3.0.0';
 const APP_CACHE = `${VERSION}-app`;
 const SHELL = [
   './', './index.html', './styles.css', './app.js', './manifest.webmanifest',
@@ -11,7 +11,7 @@ self.addEventListener('install', event => {
 
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
-    for (const key of await caches.keys()) if (key.startsWith('arena-pocket-ide-') && key !== APP_CACHE) await caches.delete(key);
+    for (const key of await caches.keys()) if ((key.startsWith('arena-pocket-ide-') || key.startsWith('xcoder-')) && key !== APP_CACHE) await caches.delete(key);
     await self.clients.claim();
   })());
 });
@@ -20,7 +20,7 @@ self.addEventListener('fetch', event => {
   const req = event.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
-  if (url.origin !== self.location.origin) return; // Never cache API/GitHub/Arena credentials or responses.
+  if (url.origin !== self.location.origin) return; // Never cache API/GitHub/AI credentials or responses.
 
   if (req.mode === 'navigate') {
     event.respondWith((async () => {
