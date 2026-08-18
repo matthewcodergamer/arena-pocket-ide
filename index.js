@@ -135,7 +135,8 @@ function configuredDefaultModel(id, env) {
   const defaults = {
     openrouter: 'openrouter/free',
     bazaarlink: 'auto:free',
-    cloudflare: '@cf/qwen/qwen2.5-coder-32b-instruct'
+    sambanova: 'MiniMax-M2.7',
+    cloudflare: '@cf/openai/gpt-oss-20b'
   };
   return String(env[names[id]] || defaults[id] || '').trim();
 }
@@ -350,14 +351,14 @@ async function autoCandidates(env) {
   const sorted = filtered.sort((a,b) => modelScore(b) - modelScore(a));
   const picked = [];
   const seenProviders = new Set();
+  // Broad free routers are intentionally first because they can choose a healthy model internally.
+  if (isConfigured('bazaarlink', env)) { picked.push({ provider:'bazaarlink', id:'auto:free', name:'BazaarLink Auto Free', free:true }); seenProviders.add('bazaarlink'); }
+  if (isConfigured('openrouter', env)) { picked.push({ provider:'openrouter', id:'openrouter/free', name:'OpenRouter Free Router', free:true }); seenProviders.add('openrouter'); }
   for (const m of sorted) {
     if (seenProviders.has(m.provider)) continue;
     picked.push(m); seenProviders.add(m.provider);
-    if (picked.length >= 7) break;
+    if (picked.length >= 8) break;
   }
-  // Keep provider-level free routers available as broad fallbacks when configured.
-  if (isConfigured('bazaarlink', env) && !picked.some(x => x.provider === 'bazaarlink')) picked.push({ provider: 'bazaarlink', id: 'auto:free', name: 'BazaarLink Auto Free', free: true });
-  if (isConfigured('openrouter', env) && !picked.some(x => x.provider === 'openrouter')) picked.push({ provider: 'openrouter', id: 'openrouter/free', name: 'OpenRouter Free Router', free: true });
   return picked;
 }
 async function routeRequest(body, env, signal) {
@@ -415,7 +416,8 @@ async function routeRequest(body, env, signal) {
       }
     }
   }
-  const err = new Error('Every configured AI route was unavailable for this request.');
+  const brief=attempts.map(a=>`${a.provider}/${a.model}: ${a.kind||a.status||'failed'}`).join(' → ');
+  const err = new Error(`Every configured AI route was unavailable${brief?`. Tried ${brief}`:''}.`);
   err.status = 503; err.attempts = attempts; throw err;
 }
 

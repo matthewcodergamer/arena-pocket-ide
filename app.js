@@ -40,11 +40,38 @@ const ICONS = {
   download:'<path d="M12 3.5v11M7.5 10.5 12 15l4.5-4.5M4.5 20h15"/>',
   upload:'<path d="M12 20.5v-11M7.5 13.5 12 9l4.5 4.5M4.5 4h15"/>',
   play:'<path d="m8 5.5 10.5 6.5L8 18.5z"/>',
-  save:'<path d="M5.5 3.5h11l2 2v15h-13z"/><path d="M8.5 3.5v5h7v-5M8.5 20.5v-7h7v7"/>'
+  save:'<path d="M5.5 3.5h11l2 2v15h-13z"/><path d="M8.5 3.5v5h7v-5M8.5 20.5v-7h7v7"/>',
+  list:'<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="5" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="5" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="5" cy="18" r="1" fill="currentColor" stroke="none"/>',
+  external:'<path d="M13 5h6v6M19 5l-8 8"/><path d="M10 7H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-4"/>'
+};
+
+// Apple SF Symbols adapter for the web build.
+// Actual SF Symbol artwork must be exported from Apple's SF Symbols app by the developer
+// and placed in ./sf-symbols/. X Coder then uses those files directly. If an asset is not
+// present, the original inline SVG icon remains as a safe fallback so the IDE never breaks.
+const SF_SYMBOLS = {
+  menu:'line.3.horizontal', search:'magnifyingglass', sliders:'slider.horizontal.3',
+  filePlus:'doc.badge.plus', folderPlus:'folder.badge.plus', more:'ellipsis', close:'xmark',
+  back:'chevron.left', copy:'square.on.square', folder:'folder', file:'doc',
+  code:'chevron.left.forwardslash.chevron.right', globe:'globe', terminal:'apple.terminal',
+  git:'point.3.connected.trianglepath.dotted', tabs:'square.grid.2x2', spark:'sparkles',
+  refresh:'arrow.clockwise', maximize:'arrow.up.left.and.arrow.down.right', console:'apple.terminal',
+  send:'paperplane.fill', stop:'stop.fill', settings:'gearshape', projects:'folder.fill.badge.plus',
+  info:'info.circle', chevron:'chevron.right', chevronDown:'chevron.down', trash:'trash',
+  edit:'pencil', download:'square.and.arrow.down', upload:'square.and.arrow.up', play:'play.fill',
+  save:'square.and.arrow.down', list:'list.bullet', external:'arrow.up.right.square'
+};
+const SF_SYMBOL_BASE='./sf-symbols';
+
+function fallbackSvgIcon(name, cls='') {
+  return `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.95" stroke-linecap="round" stroke-linejoin="round">${ICONS[name] || ICONS.file}</svg>`;
 }
 
 function svgIcon(name, cls='') {
-  return `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[name] || ICONS.file}</svg>`;
+  const symbol=SF_SYMBOLS[name];
+  if(!symbol) return fallbackSvgIcon(name,cls);
+  const fallback=encodeURIComponent(fallbackSvgIcon(name,cls).replace(/#/g,'%23'));
+  return `<span class="sf-symbol ${cls}" aria-hidden="true" data-sf-symbol="${symbol}"><img src="${SF_SYMBOL_BASE}/${symbol}.svg" alt="" draggable="false" onerror="this.parentElement.innerHTML=decodeURIComponent('${fallback}')"></span>`;
 }
 function hydrateIcons(root=document){
   $$('[data-icon]', root).forEach(el => {
@@ -221,7 +248,7 @@ const DEFAULT_FILES = {
 const state = {
   project:null, fs:null, view:'editor', openTabs:[], activePath:null, dirty:new Set(), expanded:new Set(),
   saveTimers:new Map(), console:[], terminal:{cwd:'',history:[],index:0},
-  editor:null, cm:null, editorReady:false, editorSetting:{wrap:true,accessory:true,fontSize:14},
+  editor:null, cm:null, editorReady:false, editorSetting:{wrap:false,accessory:true,fontSize:14,syntaxTheme:'vscode-dark'},
   previewObjectUrls:[], ai:{busy:false,abort:null,messages:[],proposal:null,lastCheckpoint:null,redoCheckpoint:null,lastRoute:null,statusTimer:null,healthTimer:null,catalog:{providers:[],workerModels:[],puterModels:[],puterUsage:null,loadedAt:0},usage:{calls:0,totalTokens:0,byProvider:{}},ctx:{file:true,project:true,console:false}},
   git:{snapshot:{},repo:'',branch:'main'}, explorerSort:'name', viewportHeight:window.innerHeight
 };
@@ -286,7 +313,7 @@ function setView(view){
 
 function updateHeader(){
   const titleMap={editor:state.activePath?posix.basename(state.activePath):'Editor',browser:'Browser',terminal:'Terminal',ai:'AI',git:'Git',tabs:'Tabs',settings:'Settings'};
-  $('#mobileTitle').textContent=titleMap[state.view]||'IDE'; $('#mobileSubtitle').textContent=state.view==='editor'&&state.activePath?posix.dirname(state.activePath):'';
+  $('#mobileTitle').textContent=titleMap[state.view]||'IDE'; $('#mobileSubtitle').textContent=state.view==='editor'&&state.activePath?posix.dirname(state.activePath):''; const langIcon=$('#mobileLanguageIcon'); if(langIcon){const url=state.view==='editor'&&state.activePath?languageIconUrl(state.activePath):'';langIcon.innerHTML=url?`<img src="${url}" alt="" referrerpolicy="no-referrer">`:'';langIcon.classList.toggle('hidden',!url);}
   const a=$('#mobileHeaderActions'); a.innerHTML='';
   const add=(icon,label,fn)=>{const b=document.createElement('button');b.className='icon-btn';b.setAttribute('aria-label',label);b.innerHTML=svgIcon(icon);b.addEventListener('click',fn);a.append(b);};
   if(state.view==='editor'){add('search','Find',()=>editorCommand('find'));add('folder','Explorer',()=>openExplorer());}
@@ -317,7 +344,7 @@ function buildTree(filter=''){
   for(const {n,depth,expanded} of rows){
     const row=document.createElement('div');row.className=`tree-row ${n.type} ${state.activePath===n.path?'active':''}`;row.style.setProperty('--depth',depth);row.dataset.path=n.path;row.dataset.type=n.type;row.setAttribute('role','treeitem');
     const size=n.type==='file'?(n.binary instanceof Blob?n.binary.size:new Blob([n.content||'']).size):0;
-    row.innerHTML=`<span class="tree-indent"></span><span class="file-icon-backplate">${svgIcon(n.type==='folder'?'folder':fileIconName(n.path))}</span><span class="tree-copy"><div class="tree-name">${escapeHtml(posix.basename(n.path))}</div><div class="tree-meta">${n.type==='folder'?'Directory':`${prettySize(size)} · ${formatDate(n.updatedAt)}`}</div></span><span class="tree-arrow">${n.type==='folder'?svgIcon(expanded?'chevronDown':'chevron'):svgIcon('chevron')}</span>`;
+    row.innerHTML=`<span class="tree-indent"></span><span class="file-icon-backplate">${n.type==='folder'?svgIcon('folder'):languageIconHtml(n.path)}</span><span class="tree-copy"><div class="tree-name">${escapeHtml(posix.basename(n.path))}</div><div class="tree-meta">${n.type==='folder'?'Directory':`${prettySize(size)} · ${formatDate(n.updatedAt)}`}</div></span><span class="tree-arrow">${n.type==='folder'?svgIcon(expanded?'chevronDown':'chevron'):svgIcon('chevron')}</span>`;
     if(n.type==='folder'){
       row.addEventListener('click',()=>{state.expanded.has(n.path)?state.expanded.delete(n.path):state.expanded.add(n.path);renderExplorer();saveProjectMeta();});
     }else row.addEventListener('click',()=>openFile(n.path));
@@ -328,6 +355,23 @@ function buildTree(filter=''){
 }
 function renderExplorer(){buildTree($('#explorerSearchInput').value||'');$('#explorerProjectName').textContent=state.project?.name||'';$('#projectRootLabel').textContent='Root';$('#drawerProjectName').textContent=state.project?.name||'Project';$('#drawerProjectMeta').textContent=`${state.fs.entries().filter(r=>r.type==='file').length} files`;}
 function fileIconName(path){const e=posix.ext(path);if(['.js','.mjs','.ts','.tsx','.jsx'].includes(e))return'code';if(e==='.html')return'globe';return'file';}
+const DEVICON_BASE='https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons';
+function languageIconUrl(path){
+  const e=posix.ext(path),b=posix.basename(path).toLowerCase();
+  if(e==='.html'||e==='.htm')return `${DEVICON_BASE}/html5/html5-original.svg`;
+  if(e==='.css')return `${DEVICON_BASE}/css3/css3-original.svg`;
+  if(e==='.js'||e==='.mjs'||e==='.cjs')return `${DEVICON_BASE}/javascript/javascript-original.svg`;
+  if(e==='.ts')return `${DEVICON_BASE}/typescript/typescript-original.svg`;
+  if(e==='.jsx'||e==='.tsx')return `${DEVICON_BASE}/react/react-original.svg`;
+  if(e==='.py')return `${DEVICON_BASE}/python/python-original.svg`;
+  if(e==='.java')return `${DEVICON_BASE}/java/java-original.svg`;
+  if(b==='.gitignore'||e==='.git')return `${DEVICON_BASE}/git/git-original.svg`;
+  return '';
+}
+function languageIconHtml(path,cls='language-file-icon'){
+  const url=languageIconUrl(path);if(!url)return svgIcon(fileIconName(path));
+  return `<img class="${cls}" src="${url}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer">`;
+}
 function attachLongPress(el,cb){let t=null,sx=0,sy=0;el.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse')return;sx=e.clientX;sy=e.clientY;t=setTimeout(()=>cb(sx,sy),520);});const cancel=()=>{if(t)clearTimeout(t);t=null};el.addEventListener('pointerup',cancel);el.addEventListener('pointercancel',cancel);el.addEventListener('pointermove',e=>{if(Math.hypot(e.clientX-sx,e.clientY-sy)>8)cancel();});}
 function showPathMenu(path,type,x,y){
   const m=$('#contextMenu');m.innerHTML='';const items=[['edit','Rename',()=>renamePathPrompt(path)],['copy','Copy path',()=>navigator.clipboard?.writeText(path).then(()=>toast('Path copied'))],['download','Download',()=>downloadPath(path)]];
@@ -359,21 +403,50 @@ async function closeTab(path){
 }
 function renderTabs(){
   const host=$('#tabsList');host.innerHTML='';if(!state.openTabs.length){host.innerHTML='<div class="empty-state"><h2>No open tabs</h2><p>Open a file from Explorer.</p></div>';return;}
-  for(const path of state.openTabs){const r=document.createElement('div');r.className=`tab-row ${path===state.activePath?'active':''}`;r.innerHTML=`<span class="file-icon-backplate">${svgIcon(fileIconName(path))}</span><span class="tab-row-copy"><div class="tab-row-name">${escapeHtml(posix.basename(path))}</div><div class="tab-row-path">${escapeHtml(posix.dirname(path)||'Root')}</div></span>${state.dirty.has(path)?'<span class="dirty-dot"></span>':''}<button class="icon-btn compact" aria-label="Close tab">${svgIcon('close')}</button>`;r.addEventListener('click',e=>{if(e.target.closest('button'))return;openFile(path);});$('button',r).addEventListener('click',()=>closeTab(path));host.append(r);}
+  for(const path of state.openTabs){const r=document.createElement('div');r.className=`tab-row ${path===state.activePath?'active':''}`;r.innerHTML=`<span class="file-icon-backplate">${languageIconHtml(path)}</span><span class="tab-row-copy"><div class="tab-row-name">${escapeHtml(posix.basename(path))}</div><div class="tab-row-path">${escapeHtml(posix.dirname(path)||'Root')}</div></span>${state.dirty.has(path)?'<span class="dirty-dot"></span>':''}<button class="icon-btn compact" aria-label="Close tab">${svgIcon('close')}</button>`;r.addEventListener('click',e=>{if(e.target.closest('button'))return;openFile(path);});$('button',r).addEventListener('click',()=>closeTab(path));host.append(r);}
 }
 
 async function loadCodeMirror(){
   if(state.cm)return state.cm;
   try{
-    const [cm,stateMod,viewMod,jsMod,htmlMod,cssMod,jsonMod,mdMod,searchMod,cmdMod] = await Promise.all([
+    const [cm,stateMod,viewMod,jsMod,htmlMod,cssMod,jsonMod,mdMod,searchMod,cmdMod,highlightMod] = await Promise.all([
       import('https://esm.sh/codemirror'), import('https://esm.sh/@codemirror/state'), import('https://esm.sh/@codemirror/view'),
       import('https://esm.sh/@codemirror/lang-javascript'), import('https://esm.sh/@codemirror/lang-html'), import('https://esm.sh/@codemirror/lang-css'), import('https://esm.sh/@codemirror/lang-json'), import('https://esm.sh/@codemirror/lang-markdown'),
-      import('https://esm.sh/@codemirror/search'), import('https://esm.sh/@codemirror/commands')
+      import('https://esm.sh/@codemirror/search'), import('https://esm.sh/@codemirror/commands'), import('https://esm.sh/@lezer/highlight')
     ]);
-    state.cm={...cm,...stateMod,...viewMod,jsMod,htmlMod,cssMod,jsonMod,mdMod,searchMod,cmdMod};return state.cm;
+    state.cm={...cm,...stateMod,...viewMod,jsMod,htmlMod,cssMod,jsonMod,mdMod,searchMod,cmdMod,highlightMod};return state.cm;
   }catch(e){console.error(e);throw new Error('CodeMirror could not load. Connect once so the editor package can be cached.');}
 }
 function languageFor(path){const c=state.cm,e=posix.ext(path);if(!c)return[];if(e==='.js'||e==='.mjs'||e==='.jsx')return c.jsMod.javascript({jsx:e==='.jsx'});if(e==='.ts'||e==='.tsx')return c.jsMod.javascript({typescript:true,jsx:e==='.tsx'});if(e==='.html'||e==='.htm')return c.htmlMod.html();if(e==='.css')return c.cssMod.css();if(e==='.json')return c.jsonMod.json();if(e==='.md'||e==='.markdown')return c.mdMod.markdown();return[];}
+function editorSyntaxTheme(){
+  const c=state.cm,h=c?.highlightMod;if(!c||!h)return[];
+  const t=h.tags,name=state.editorSetting.syntaxTheme||'vscode-dark';
+  const palettes={
+    'vscode-dark':{keyword:'#C586C0',name:'#9CDCFE',type:'#4EC9B0',string:'#CE9178',number:'#B5CEA8',comment:'#6A9955',operator:'#D4D4D4',regexp:'#D16969',tag:'#569CD6',attr:'#9CDCFE',bool:'#569CD6',punct:'#D4D4D4'},
+    'vscode-light':{keyword:'#AF00DB',name:'#001080',type:'#267F99',string:'#A31515',number:'#098658',comment:'#008000',operator:'#000000',regexp:'#811F3F',tag:'#800000',attr:'#FF0000',bool:'#0000FF',punct:'#000000'},
+    'github-dark':{keyword:'#ff7b72',name:'#79c0ff',type:'#ffa657',string:'#a5d6ff',number:'#79c0ff',comment:'#8b949e',operator:'#c9d1d9',regexp:'#7ee787',tag:'#7ee787',attr:'#79c0ff',bool:'#79c0ff',punct:'#c9d1d9'},
+    'dracula':{keyword:'#ff79c6',name:'#f8f8f2',type:'#8be9fd',string:'#f1fa8c',number:'#bd93f9',comment:'#6272a4',operator:'#ff79c6',regexp:'#ff5555',tag:'#ff79c6',attr:'#50fa7b',bool:'#bd93f9',punct:'#f8f8f2'},
+    'xcoder':{keyword:'#b985ff',name:'#8bd5ff',type:'#66e3c4',string:'#f3b37a',number:'#9edb8d',comment:'#6f8c69',operator:'#d7d7dd',regexp:'#ff7a90',tag:'#59a9ff',attr:'#a9d0ff',bool:'#927cff',punct:'#c8c8d0'}
+  };
+  const p=palettes[name]||palettes['vscode-dark'];
+  const style=c.HighlightStyle.define([
+    {tag:[t.keyword,t.modifier,t.definitionKeyword,t.controlKeyword],color:p.keyword},
+    {tag:[t.variableName,t.propertyName,t.attributeName],color:p.name},
+    {tag:[t.typeName,t.className,t.namespace],color:p.type},
+    {tag:[t.string,t.special(t.string)],color:p.string},
+    {tag:[t.number,t.integer,t.float],color:p.number},
+    {tag:[t.comment,t.lineComment,t.blockComment],color:p.comment,fontStyle:'italic'},
+    {tag:[t.operator,t.operatorKeyword],color:p.operator},
+    {tag:[t.regexp,t.escape],color:p.regexp},
+    {tag:[t.tagName,t.heading],color:p.tag},
+    {tag:[t.attributeName,t.labelName],color:p.attr},
+    {tag:[t.bool,t.null],color:p.bool},
+    {tag:[t.punctuation,t.bracket],color:p.punct},
+    {tag:[t.function(t.variableName),t.function(t.propertyName)],color:p.name},
+    {tag:[t.definition(t.variableName)],color:p.name}
+  ]);
+  return c.syntaxHighlighting(style);
+}
 function editorTheme(){
   const c=state.cm;const light=document.documentElement.dataset.theme==='light';
   return c.EditorView.theme({
@@ -399,7 +472,7 @@ async function loadActiveEditor(){
   if(state.editor){state.editor.destroy();state.editor=null;}
   const rec=state.fs.get(state.activePath);if(!rec)return;const text=await state.fs.readText(state.activePath);const c=state.cm;const updateListener=c.EditorView.updateListener.of(update=>{if(update.docChanged){const value=update.state.doc.toString();markDirty(state.activePath,value);}});
   const wrap=state.editorSetting.wrap?c.EditorView.lineWrapping:[];
-  state.editor=new c.EditorView({state:c.EditorState.create({doc:text,extensions:[c.basicSetup,languageFor(state.activePath),editorTheme(),wrap,updateListener,c.EditorView.contentAttributes.of({autocapitalize:'off',autocomplete:'off',spellcheck:'false'})]}),parent:$('#editorHost')});
+  state.editor=new c.EditorView({state:c.EditorState.create({doc:text,extensions:[c.basicSetup,languageFor(state.activePath),editorTheme(),editorSyntaxTheme(),wrap,updateListener,c.EditorView.contentAttributes.of({autocapitalize:'off',autocomplete:'off',spellcheck:'false'})]}),parent:$('#editorHost')});
   updateHeader();renderAccessory();setTimeout(()=>state.editor?.focus(),60);
 }
 function markDirty(path,value){state.dirty.add(path);renderTabs();$('#saveStatus').textContent='Unsaved';clearTimeout(state.saveTimers.get(path));const t=setTimeout(async()=>{try{await state.fs.writeText(path,value);state.dirty.delete(path);$('#saveStatus').textContent='Saved';renderExplorer();renderTabs();saveProjectMeta();if(state.view==='browser')refreshPreview();}catch(e){$('#saveStatus').textContent='Save failed';toast(e.message,'error');}},450);state.saveTimers.set(path,t);}
@@ -417,7 +490,17 @@ async function buildAssetMap(){
   return map;
 }
 function rewriteCssUrls(css,cssPath,assetMap){return css.replace(/url\((['"]?)([^'"\)]+)\1\)/g,(m,q,spec)=>{if(/^data:|^https?:|^blob:|^#/.test(spec))return m;const p=posix.resolve(cssPath,spec);const u=assetMap.get(p);return u?`url("${u}")`:m;});}
-const PREVIEW_BRIDGE = `<script>(function(){const send=(level,args)=>{try{parent.postMessage({__arenaPreview:true,level,args:args.map(v=>{try{return typeof v==='string'?v:JSON.stringify(v)}catch{return String(v)}}),time:Date.now()},'*')}catch{}};['log','info','warn','error'].forEach(k=>{const o=console[k];console[k]=(...a)=>{send(k,a);o.apply(console,a)}});addEventListener('error',e=>send('error',[e.message+(e.filename?' @ '+e.filename+':'+e.lineno:'')]));addEventListener('unhandledrejection',e=>send('error',['Unhandled rejection: '+(e.reason?.stack||e.reason)]));parent.postMessage({__arenaPreview:true,level:'info',args:['Preview loaded'],time:Date.now()},'*')})();<\/script>`;
+const ERUDA_CDN='https://cdn.jsdelivr.net/npm/eruda@3.4.3/eruda.min.js';
+const PREVIEW_BRIDGE = `<script src="${ERUDA_CDN}"><\/script><script>(function(){
+const send=(level,args)=>{try{parent.postMessage({__arenaPreview:true,level,args:args.map(v=>{try{return typeof v==='string'?v:JSON.stringify(v)}catch{return String(v)}}),time:Date.now()},'*')}catch{}};
+['log','info','warn','error'].forEach(k=>{const o=console[k];console[k]=(...a)=>{send(k,a);o.apply(console,a)}});
+addEventListener('error',e=>send('error',[e.message+(e.filename?' @ '+e.filename+':'+e.lineno:'')]));
+addEventListener('unhandledrejection',e=>send('error',['Unhandled rejection: '+(e.reason?.stack||e.reason)]));
+let devtoolsReady=false,devtoolsVisible=false;
+function ensureDevtools(){if(devtoolsReady)return true;if(!window.eruda)return false;try{eruda.init({tool:['console','elements','network','resources','sources'],autoScale:true,useShadowDom:true});eruda.hide();devtoolsReady=true;return true}catch(err){send('error',['Web Console failed to initialize: '+err.message]);return false}}
+addEventListener('message',e=>{if(e.data?.__xcoderDevtools==='toggle'){if(!ensureDevtools()){send('warn',['Web Console library is still loading. Try again in a moment.']);return;}devtoolsVisible=!devtoolsVisible;devtoolsVisible?eruda.show():eruda.hide();}});
+setTimeout(ensureDevtools,500);
+parent.postMessage({__arenaPreview:true,level:'info',args:['Preview loaded'],time:Date.now()},'*')})();<\/script>`
 const BARE_IMPORT_MAP = {
   'three':'https://esm.sh/three@0.170.0',
   'lil-gui':'https://esm.sh/lil-gui@0.19.2',
@@ -490,6 +573,10 @@ async function refreshPreview(){
   if(state.activePath)await flushSave();const frame=$('#previewFrame');const entry=previewTargetPath();$('#previewUrl').textContent=`project://${entry}`;try{frame.srcdoc=await buildPreviewDocument(entry);}catch(e){frame.srcdoc=`<!doctype html><body style="background:#111;color:#eee;font:16px system-ui;padding:30px"><h2>Preview unavailable</h2><pre>${escapeHtml(e.message)}</pre></body>`;logPreview('error',[e.message]);}
 }
 function logPreview(level,args,time=Date.now()){state.console.push({level,args,time});if(state.console.length>500)state.console.splice(0,state.console.length-500);renderConsole();}
+function toggleWebConsole(){
+  const frame=$('#previewFrame');if(!frame?.contentWindow){toast('Run the preview first','error');return;}
+  frame.contentWindow.postMessage({__xcoderDevtools:'toggle'},'*');
+}
 function renderConsole(){const h=$('#previewConsoleList');if(!h)return;h.innerHTML=state.console.map(e=>`<div class="console-entry ${e.level}"><span class="level">${escapeHtml(e.level)}</span><div><div>${escapeHtml(e.args.join(' '))}</div><div class="console-time">${new Date(e.time).toLocaleTimeString()}</div></div></div>`).join('')||'<div class="muted" style="padding:12px">No console output</div>';h.scrollTop=h.scrollHeight;}
 
 const terminalLines=[];
@@ -676,13 +763,15 @@ function renderProviderStatus(){
   const h=$('#aiProviderList');if(!h)return;const rows=[...(state.ai.catalog.providers||[])];
   if(puterSignedIn())rows.push({id:'puter',label:'Puter AI',configured:true,status:'ready',modelCount:state.ai.catalog.puterModels.length,kind:'browser'});
   else rows.push({id:'puter',label:'Puter AI',configured:false,status:'not signed in',modelCount:null,kind:'browser'});
-  h.innerHTML=rows.map(p=>{const status=String(p.status||'configured').replace(/_/g,' ');const meta=p.kind==='media'?'Media provider':p.modelCount!=null?`${p.modelCount} model${p.modelCount===1?'':'s'}`:(p.configured?'Configured':'Not configured');return `<div class="ai-provider-row ${escapeHtml(p.status||'')}"><span class="ai-provider-dot"></span><div><div class="ai-provider-name">${escapeHtml(p.label||p.id)}</div><div class="ai-provider-meta">${escapeHtml(meta)}</div></div><span class="ai-provider-state">${escapeHtml(status)}</span></div>`;}).join('');
+  h.innerHTML=rows.map(p=>{const status=String(p.status||'configured').replace(/_/g,' ');let meta=p.kind==='media'?'Media only — not used for code chat':p.modelCount!=null?`${p.modelCount} coding model${p.modelCount===1?'':'s'} discovered`:(p.configured?'Key/binding detected':'No key or binding');if(p.error)meta+=` · ${String(p.error).slice(0,120)}`;return `<div class="ai-provider-row ${escapeHtml(p.status||'')}"><span class="ai-provider-dot"></span><div><div class="ai-provider-name">${escapeHtml(p.label||p.id)}</div><div class="ai-provider-meta">${escapeHtml(meta)}</div></div><span class="ai-provider-state">${escapeHtml(status)}</span></div>`;}).join('');
 }
 function renderAIModelOptions(){
   const select=$('#aiModelSelect');if(!select)return;const selected=arenaConfig().selection;select.innerHTML='';
   const opt=(value,label,parent=select)=>{const o=document.createElement('option');o.value=value;o.textContent=label;parent.append(o);};
-  opt('auto','Auto Router');
-  if(puterSignedIn())opt('puter-auto','Puter Auto');
+  opt('auto','Auto · best available');
+  const providerRows=(state.ai.catalog.providers||[]).filter(p=>p.configured&&p.kind!=='media');
+  for(const p of providerRows) opt(encodeAIRoute('worker',p.id,''),`${p.label||p.id} · Auto`);
+  if(puterSignedIn())opt('puter-auto','Puter · Auto');
   const worker=state.ai.catalog.workerModels||[];
   const byProvider=new Map();for(const m of worker){if(!byProvider.has(m.provider))byProvider.set(m.provider,[]);byProvider.get(m.provider).push(m);}
   for(const [provider,models] of byProvider){const g=document.createElement('optgroup');g.label=(state.ai.catalog.providers||[]).find(p=>p.id===provider)?.label||provider;for(const m of models.slice(0,120))opt(encodeAIRoute('worker',provider,m.id),m.name||m.id,g);select.append(g);}
@@ -823,10 +912,10 @@ async function pushGitHub(){
 }
 function throwGit(msg){toast(msg,'error');throw new Error(msg);}
 
-function diagnosticsObject(){return {product:'X Coder',ideVersion:'4.0.0',userAgent:navigator.userAgent,standalone:matchMedia('(display-mode: standalone)').matches||navigator.standalone===true,viewport:`${innerWidth}x${innerHeight}`,visualViewport:window.visualViewport?`${Math.round(visualViewport.width)}x${Math.round(visualViewport.height)}`:'unavailable',devicePixelRatio:devicePixelRatio,online:navigator.onLine,serviceWorker:'serviceWorker'in navigator,indexedDB:'indexedDB'in window,projectId:state.project?.id,fileCount:state.fs?.entries().filter(r=>r.type==='file').length||0,openTabs:state.openTabs.length,activeFile:state.activePath,previewLogs:state.console.length,aiRouterConfigured:!!arenaConfig().proxy,aiSelection:arenaConfig().selection,aiLastRoute:state.ai.lastRoute?routeLabel(state.ai.lastRoute):null,aiProviders:state.ai.catalog.providers.map(p=>({id:p.id,status:p.status,configured:p.configured})),puterSignedIn:puterSignedIn(),gitRepo:state.git.repo||null};}
+function diagnosticsObject(){return {product:'X Coder',ideVersion:'4.2.0',userAgent:navigator.userAgent,standalone:matchMedia('(display-mode: standalone)').matches||navigator.standalone===true,viewport:`${innerWidth}x${innerHeight}`,visualViewport:window.visualViewport?`${Math.round(visualViewport.width)}x${Math.round(visualViewport.height)}`:'unavailable',devicePixelRatio:devicePixelRatio,online:navigator.onLine,serviceWorker:'serviceWorker'in navigator,indexedDB:'indexedDB'in window,projectId:state.project?.id,fileCount:state.fs?.entries().filter(r=>r.type==='file').length||0,openTabs:state.openTabs.length,activeFile:state.activePath,previewLogs:state.console.length,aiRouterConfigured:!!arenaConfig().proxy,aiSelection:arenaConfig().selection,aiLastRoute:state.ai.lastRoute?routeLabel(state.ai.lastRoute):null,aiProviders:state.ai.catalog.providers.map(p=>({id:p.id,status:p.status,configured:p.configured})),puterSignedIn:puterSignedIn(),gitRepo:state.git.repo||null};}
 function updateDiagnostics(){$('#diagnosticsText').textContent=JSON.stringify(diagnosticsObject(),null,2);}
 
-function renderAll(){applyTheme(localStorage.getItem(THEME_KEY)||'system');updateConnectivity();buildNav();renderExplorer();renderTabs();renderAIMessages();renderProposal();updateHeader();$('#explorerProjectName').textContent=state.project?.name||'';$('#gitRepoInput').value=state.git.repo||'';$('#gitBranchInput').value=state.git.branch||'main';$('#arenaProxyInput').value=arenaConfig().proxy;renderProviderStatus();renderAIModelOptions();renderAIUsageSummary();$('#accessoryToggle').checked=state.editorSetting.accessory;$('#wordWrapToggle').checked=state.editorSetting.wrap;$('#fontSizeRange').value=state.editorSetting.fontSize;document.documentElement.style.setProperty('--editor-font-size',state.editorSetting.fontSize+'px');updateDiagnostics();}
+function renderAll(){applyTheme(localStorage.getItem(THEME_KEY)||'system');updateConnectivity();buildNav();renderExplorer();renderTabs();renderAIMessages();renderProposal();updateHeader();$('#explorerProjectName').textContent=state.project?.name||'';$('#gitRepoInput').value=state.git.repo||'';$('#gitBranchInput').value=state.git.branch||'main';$('#arenaProxyInput').value=arenaConfig().proxy;renderProviderStatus();renderAIModelOptions();renderAIUsageSummary();$('#accessoryToggle').checked=state.editorSetting.accessory;$('#wordWrapToggle').checked=state.editorSetting.wrap;$('#fontSizeRange').value=state.editorSetting.fontSize;$('#syntaxThemeSelect').value=state.editorSetting.syntaxTheme||'vscode-dark';document.documentElement.style.setProperty('--editor-font-size',state.editorSetting.fontSize+'px');updateDiagnostics();}
 function autoSizeTextarea(el){el.style.height='auto';el.style.height=Math.min(140,Math.max(38,el.scrollHeight))+'px';}
 
 function bindUI(){
@@ -838,18 +927,18 @@ function bindUI(){
   $('#explorerSearchBtn').addEventListener('click',()=>{$('#explorerSearchWrap').classList.toggle('hidden');if(!$('#explorerSearchWrap').classList.contains('hidden'))$('#explorerSearchInput').focus();});$('#explorerSearchClose').addEventListener('click',()=>{$('#explorerSearchWrap').classList.add('hidden');$('#explorerSearchInput').value='';renderExplorer();});$('#explorerSearchInput').addEventListener('input',renderExplorer);
   $('#explorerMoreBtn').addEventListener('click',e=>showExplorerMore(e.currentTarget.getBoundingClientRect()));$('#explorerFilterBtn')?.addEventListener('click',e=>showExplorerFilter(e.currentTarget.getBoundingClientRect()));$('#copyProjectPathBtn').addEventListener('click',()=>navigator.clipboard?.writeText(`${state.project.name}\n${state.fs.entries().filter(r=>r.type==='file').length} files`).then(()=>toast('Project info copied')));
   $('#textPromptDialog').addEventListener('close',handlePromptClose);$('#textPromptForm').addEventListener('submit',e=>{if($('#textPromptSubmit').disabled)e.preventDefault();});
-  $('#previewRefreshBtn').addEventListener('click',refreshPreview);$('#previewConsoleBtn').addEventListener('click',()=>$('#previewConsoleDrawer').classList.toggle('hidden'));$('#closeConsoleBtn').addEventListener('click',()=>$('#previewConsoleDrawer').classList.add('hidden'));$('#clearConsoleBtn').addEventListener('click',()=>{state.console=[];renderConsole();});$('#previewFullscreenBtn').addEventListener('click',()=>$('#previewFrame').requestFullscreen?.());
+  $('#previewRefreshBtn').addEventListener('click',refreshPreview);$('#previewConsoleBtn').addEventListener('click',toggleWebConsole);$('#previewLogsBtn').addEventListener('click',()=>$('#previewConsoleDrawer').classList.toggle('hidden'));$('#closeConsoleBtn').addEventListener('click',()=>$('#previewConsoleDrawer').classList.add('hidden'));$('#clearConsoleBtn').addEventListener('click',()=>{state.console=[];renderConsole();});$('#previewFullscreenBtn').addEventListener('click',()=>$('#previewFrame').requestFullscreen?.());
   $('#terminalForm').addEventListener('submit',async e=>{e.preventDefault();const i=$('#terminalInput');const v=i.value;i.value='';await runTerminal(v);});$('#terminalInput').addEventListener('keydown',e=>{if(e.key==='ArrowUp'){e.preventDefault();state.terminal.index=Math.max(0,state.terminal.index-1);e.currentTarget.value=state.terminal.history[state.terminal.index]||'';}else if(e.key==='ArrowDown'){e.preventDefault();state.terminal.index=Math.min(state.terminal.history.length,state.terminal.index+1);e.currentTarget.value=state.terminal.history[state.terminal.index]||'';}});
   $('#aiInput').addEventListener('input',e=>autoSizeTextarea(e.currentTarget));$('#aiInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();runAgent();}});$('#aiSendBtn').addEventListener('click',runAgent);$('#aiStopBtn').addEventListener('click',()=>state.ai.abort?.abort());$('#aiUndoBtn').addEventListener('click',undoAIChanges);$('#aiRedoBtn').addEventListener('click',redoAIChanges);
   for(const [id,key] of [['aiCurrentFileToggle','file'],['aiProjectToggle','project'],['aiConsoleToggle','console']])$('#'+id).addEventListener('click',e=>{state.ai.ctx[key]=!state.ai.ctx[key];e.currentTarget.classList.toggle('active',state.ai.ctx[key]);});
-  $('#aiModelSelect').addEventListener('change',e=>{localStorage.setItem('xcoderAISelection',e.currentTarget.value);const r=decodeAIRoute(e.currentTarget.value);toast(r.source==='auto'?'Auto Router selected':r.source==='puter'?'Puter route selected':'Worker model selected','success');});
+  $('#aiModelSelect').addEventListener('change',e=>{localStorage.setItem('xcoderAISelection',e.currentTarget.value);const r=decodeAIRoute(e.currentTarget.value);toast(r.source==='auto'?'Auto routing enabled':r.source==='puter'?'Puter route selected':r.model?`${r.provider} model selected`:`${r.provider} provider selected`,'success');});
   $('#arenaSaveBtn').addEventListener('click',()=>{const proxy=$('#arenaProxyInput').value.trim().replace(/\/$/,'');localStorage.setItem('xcoderProxyUrl',proxy);localStorage.setItem('arenaProxyUrl',proxy);toast('X Coder AI router saved','success');checkArenaConnection(false,true);});
   $('#arenaTestBtn').addEventListener('click',async()=>{const proxy=$('#arenaProxyInput').value.trim().replace(/\/$/,'');localStorage.setItem('xcoderProxyUrl',proxy);localStorage.setItem('arenaProxyUrl',proxy);await checkArenaConnection(true,true);});
   $('#puterSignInBtn').addEventListener('click',async()=>{try{if(!window.puter?.auth)throw new Error('Puter.js has not loaded yet.');await puter.auth.signIn();await loadPuterCatalog(true);renderProviderStatus();renderAIModelOptions();toast('Puter connected','success');}catch(e){toast(e?.msg||e?.message||String(e),'error');}});
   $('#puterRefreshBtn').addEventListener('click',async()=>{await loadPuterCatalog(true);renderProviderStatus();renderAIModelOptions();});
   $$('#themeControl [data-theme-choice]').forEach(btn=>btn.addEventListener('click',()=>{const choice=btn.dataset.themeChoice;localStorage.setItem(THEME_KEY,choice);applyTheme(choice,true);toast(`${choice==='system'?'System':choice[0].toUpperCase()+choice.slice(1)} appearance`,'success');}));
   $('#networkStatusBtn')?.addEventListener('click',()=>toast(navigator.onLine?'Internet connection is available':'You are offline. Local editing still works.',navigator.onLine?'success':'error'));
-  $('#accessoryToggle').addEventListener('change',e=>{state.editorSetting.accessory=e.target.checked;projectSettingsSet('editorSettings',state.editorSetting);renderAccessory();});$('#wordWrapToggle').addEventListener('change',async e=>{state.editorSetting.wrap=e.target.checked;projectSettingsSet('editorSettings',state.editorSetting);await loadActiveEditor();});$('#fontSizeRange').addEventListener('input',e=>{state.editorSetting.fontSize=+e.target.value;document.documentElement.style.setProperty('--editor-font-size',e.target.value+'px');projectSettingsSet('editorSettings',state.editorSetting);});
+  $('#syntaxThemeSelect').addEventListener('change',async e=>{state.editorSetting.syntaxTheme=e.target.value;await projectSettingsSet('editorSettings',state.editorSetting);await loadActiveEditor();toast(e.target.options[e.target.selectedIndex].text+' applied','success');});$('#accessoryToggle').addEventListener('change',e=>{state.editorSetting.accessory=e.target.checked;projectSettingsSet('editorSettings',state.editorSetting);renderAccessory();});$('#wordWrapToggle').addEventListener('change',async e=>{state.editorSetting.wrap=e.target.checked;projectSettingsSet('editorSettings',state.editorSetting);await loadActiveEditor();});$('#fontSizeRange').addEventListener('input',e=>{state.editorSetting.fontSize=+e.target.value;document.documentElement.style.setProperty('--editor-font-size',e.target.value+'px');projectSettingsSet('editorSettings',state.editorSetting);});
   $('#importFilesBtn').addEventListener('click',()=>$('#filePicker').click());$('#filePicker').addEventListener('change',e=>importFiles(e.target.files).finally(()=>e.target.value=''));$('#importZipBtn').addEventListener('click',()=>$('#zipPicker').click());$('#zipPicker').addEventListener('change',e=>{const f=e.target.files[0];if(f)importZip(f).catch(err=>toast(err.message,'error'));e.target.value='';});$('#exportZipBtn').addEventListener('click',exportZip);$('#newProjectBtn').addEventListener('click',createNewProject);$('#resetProjectBtn').addEventListener('click',resetProject);$('#copyDiagnosticsBtn').addEventListener('click',()=>navigator.clipboard?.writeText($('#diagnosticsText').textContent).then(()=>toast('Diagnostics copied')));
   $('#gitPullBtn').addEventListener('click',pullGitHub);$('#gitRefreshBtn').addEventListener('click',refreshGitStatus);$('#gitPushBtn').addEventListener('click',()=>pushGitHub().catch(e=>toast(e.message,'error')));
   window.addEventListener('message',e=>{if(e.data?.__arenaPreview)logPreview(e.data.level||'log',e.data.args||[],e.data.time);});
@@ -871,13 +960,35 @@ function showExplorerFilter(rect){
   m.style.left=`${Math.max(8,Math.min(innerWidth-198,rect.right-190))}px`;m.style.top=`${rect.bottom+4}px`;m.classList.remove('hidden');
 }
 function showExplorerMore(rect){const m=$('#contextMenu');const items=[['filePlus','New File',()=>promptNewFile()],['folderPlus','New Folder',()=>promptNewFolder()],['upload','Import Files',()=>$('#filePicker').click()],['download','Export Project ZIP',exportZip],['settings','Settings',()=>setView('settings')]];m.innerHTML='';for(const [icon,label,fn] of items){const b=document.createElement('button');b.innerHTML=`${svgIcon(icon)} <span style="margin-left:8px">${label}</span>`;b.addEventListener('click',()=>{m.classList.add('hidden');fn();});m.append(b);}m.style.left=`${Math.max(8,rect.right-200)}px`;m.style.top=`${rect.bottom+3}px`;m.classList.remove('hidden');}
-function setupVisualViewport(){if(!window.visualViewport)return;const update=()=>{const vv=visualViewport;const keyboard=Math.max(0,innerHeight-vv.height-vv.offsetTop);document.body.classList.toggle('keyboard-open',keyboard>120);document.documentElement.style.setProperty('--visual-height',`${vv.height}px`);if(keyboard>120&&document.activeElement){setTimeout(()=>document.activeElement.scrollIntoView?.({block:'nearest'}),50);}};visualViewport.addEventListener('resize',update);visualViewport.addEventListener('scroll',update);update();}
+function setupVisualViewport(){
+  const update=()=>{
+    const vv=window.visualViewport;
+    const height=vv?.height||window.innerHeight;
+    const width=vv?.width||window.innerWidth;
+    const top=vv?.offsetTop||0;
+    const left=vv?.offsetLeft||0;
+    const keyboard=Math.max(0,window.innerHeight-height-top);
+    document.body.classList.toggle('keyboard-open',keyboard>100);
+    document.documentElement.style.setProperty('--visual-height',`${Math.round(height)}px`);
+    document.documentElement.style.setProperty('--visual-width',`${Math.round(width)}px`);
+    document.documentElement.style.setProperty('--visual-top',`${Math.round(top)}px`);
+    document.documentElement.style.setProperty('--visual-left',`${Math.round(left)}px`);
+    document.documentElement.style.setProperty('--keyboard-height',`${Math.round(keyboard)}px`);
+    if(keyboard>100&&document.activeElement){setTimeout(()=>document.activeElement.scrollIntoView?.({block:'nearest',inline:'nearest'}),40);}
+  };
+  window.visualViewport?.addEventListener('resize',update,{passive:true});
+  window.visualViewport?.addEventListener('scroll',update,{passive:true});
+  window.addEventListener('orientationchange',()=>setTimeout(update,120),{passive:true});
+  window.addEventListener('resize',update,{passive:true});
+  update();
+}
 
 async function registerSW(){if('serviceWorker'in navigator){try{await navigator.serviceWorker.register('./sw.js',{scope:'./'});}catch(e){console.warn('Service worker registration failed',e);}}}
 
 async function init(){
+  document.body.classList.toggle('standalone-app',matchMedia('(display-mode: standalone)').matches||navigator.standalone===true);
   applyTheme(localStorage.getItem(THEME_KEY)||'system');updateConnectivity();bindUI();termPrint('X Coder browser terminal');termPrint('Type help for supported commands. Node/npm are capability-gated and not faked.','muted');
-  try{await ensureProject();state.editorSetting={...state.editorSetting,...(await projectSettingsGet('editorSettings',{}))};state.explorerSort=await projectSettingsGet('explorerSort','name');renderAll();await loadActiveEditor();setView(state.view);await registerSW();checkArenaConnection(false,true);state.ai.healthTimer=setInterval(()=>{if(navigator.onLine&&!state.ai.busy)checkArenaConnection(false,true);},300000);}catch(e){console.error(e);toast(`Startup failed: ${e.message}`,'error');$('#editorHost').innerHTML=`<div class="empty-state"><h2>IDE startup failed</h2><p>${escapeHtml(e.message)}</p></div>`;}finally{hideBootScreen();}
+  try{await ensureProject();state.editorSetting={...state.editorSetting,...(await projectSettingsGet('editorSettings',{}))};if(!localStorage.getItem('xcoderV41EditorMigrated')){state.editorSetting.wrap=false;localStorage.setItem('xcoderV41EditorMigrated','1');await projectSettingsSet('editorSettings',state.editorSetting);}state.explorerSort=await projectSettingsGet('explorerSort','name');renderAll();await loadActiveEditor();setView(state.view);await registerSW();checkArenaConnection(false,true);state.ai.healthTimer=setInterval(()=>{if(navigator.onLine&&!state.ai.busy)checkArenaConnection(false,true);},300000);}catch(e){console.error(e);toast(`Startup failed: ${e.message}`,'error');$('#editorHost').innerHTML=`<div class="empty-state"><h2>IDE startup failed</h2><p>${escapeHtml(e.message)}</p></div>`;}finally{hideBootScreen();}
 }
 
 matchMedia('(prefers-color-scheme: light)').addEventListener?.('change',()=>{if((localStorage.getItem(THEME_KEY)||'system')==='system')applyTheme('system',true);});

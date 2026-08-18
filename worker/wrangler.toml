@@ -16,7 +16,7 @@ BAZAARLINK_API_BASE = "https://api.bazaarlink.ai/v1"
 
 # Existing Gemini setting remains supported; the router can fail over to other providers.
 GEMINI_MODEL = "gemini-3.7-flash"
-CLOUDFLARE_MODEL = "@cf/qwen/qwen2.5-coder-32b-instruct"
+CLOUDFLARE_MODEL = "@cf/openai/gpt-oss-20b"
 BAZAARLINK_MODEL = "auto:free"
 FREE_ONLY = "true"
 MAX_ROUTE_ATTEMPTS = "8"

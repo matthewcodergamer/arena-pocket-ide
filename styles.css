@@ -347,3 +347,411 @@ button,input,textarea,select{color:inherit}
 @media (prefers-reduced-motion:reduce){.boot-dots i,.thinking-orb i{animation:none;opacity:.65}}
 /* Final positioning safeguard for the AI thinking indicator. */
 .ai-view{position:relative}
+
+
+/* ============================================================
+   X CODER 4.1 — professional mobile viewport/editor polish
+   Reference target: Apple simplicity + VS Code density
+   ============================================================ */
+:root{
+  --xc-ease:cubic-bezier(.22,1,.36,1);
+  --xc-fast:140ms;
+  --xc-med:220ms;
+  --visual-height:100dvh;
+  --visual-top:0px;
+}
+html,body{width:100%;height:100%;min-height:100%;}
+body{position:fixed;inset:0;overflow:hidden;background:var(--xc-bg);}
+.app-shell{
+  top:var(--visual-top);left:var(--visual-left,0px);right:auto;bottom:auto;
+  width:var(--visual-width,100vw);height:var(--visual-height,100dvh);
+  min-height:0;overflow:hidden;
+}
+body.standalone-app .app-shell{top:0;left:0;width:100vw;height:100dvh;}
+@supports(height:100svh){body.standalone-app .app-shell{height:100dvh}}
+
+/* Header is restrained, crisp, and visually anchored. */
+.pane-header,.mobile-header{box-shadow:none;transition:background var(--xc-med) var(--xc-ease),border-color var(--xc-med) var(--xc-ease)}
+.mobile-header{padding-left:max(10px,var(--safe-left));padding-right:max(8px,var(--safe-right));gap:7px}
+.mobile-header .pane-title{font-size:17px;font-weight:700;letter-spacing:-.03em}
+.icon-btn{transition:transform var(--xc-fast) var(--xc-ease),background var(--xc-fast) ease,color var(--xc-fast) ease}
+.icon-btn:active{transform:scale(.91)}
+
+/* Editor: one source line == one gutter number by default. Horizontal scroll mirrors desktop IDEs. */
+.editor-host .cm-editor{height:100%;}
+.editor-host .cm-scroller{font-variant-ligatures:none;overscroll-behavior:contain;}
+.editor-host .cm-content{padding:6px 0 24px;min-width:max-content;}
+.editor-host .cm-line{padding:0 12px 0 10px;white-space:pre;}
+.editor-host .cm-gutters{min-width:48px;}
+.editor-host .cm-lineNumbers .cm-gutterElement{min-width:46px;padding:0 10px 0 5px;text-align:right;}
+.editor-host .cm-foldGutter .cm-gutterElement{padding:0 2px;width:14px;}
+.editor-host .cm-activeLine,.editor-host .cm-activeLineGutter{background:color-mix(in srgb,var(--xc-text) 3.5%,transparent)}
+.editor-host .cm-selectionBackground,.editor-host .cm-content ::selection{background:color-mix(in srgb,var(--xc-accent) 34%,transparent)!important}
+.save-status{bottom:8px;opacity:0;transform:translateY(4px);transition:opacity .18s ease,transform .18s var(--xc-ease)}
+.save-status:not(:empty){opacity:.9;transform:none}
+
+/* Coding accessory is contextual: never sits there wasting editor space when keyboard is closed. */
+.editor-accessory{display:none!important;height:42px;animation:xcSlideUp .18s var(--xc-ease)}
+body.keyboard-open .editor-view:not(.hidden) .editor-accessory:not(.hidden){display:flex!important}
+body.keyboard-open .editor-host .cm-content{padding-bottom:58px}
+body.keyboard-open .save-status{bottom:49px}
+
+/* Mobile bottom navigation hugs the bottom; no dead black shelf below it. */
+@media(max-width:899px){
+  .main-stage{height:100%;grid-template-rows:calc(var(--safe-top) + var(--header-h)) minmax(0,1fr) calc(var(--nav-h) + var(--safe-bottom));}
+  .mobile-nav{align-self:stretch;min-height:0;height:calc(var(--nav-h) + var(--safe-bottom));padding:3px max(4px,var(--safe-right)) var(--safe-bottom) max(4px,var(--safe-left));}
+  .nav-item{height:var(--nav-h);padding-top:2px;gap:2px;transition:color .16s ease,transform .16s var(--xc-ease),background .16s ease}
+  .nav-item:active{transform:scale(.94)}
+  .nav-item .nav-icon{transition:transform .2s var(--xc-ease),color .2s ease}
+  .nav-item.active .nav-icon{transform:translateY(-1px)}
+  body.keyboard-open .main-stage{grid-template-rows:calc(var(--safe-top) + var(--header-h)) minmax(0,1fr)}
+  body.keyboard-open .mobile-nav{display:none!important}
+}
+
+/* Workspace transitions: fast, subtle, not "vibe coded". */
+.workspace-view:not(.hidden){animation:xcWorkspaceIn .18s var(--xc-ease)}
+@keyframes xcWorkspaceIn{from{opacity:.25;transform:translateY(3px)}to{opacity:1;transform:none}}
+@keyframes xcSlideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes xcScaleIn{from{opacity:0;transform:scale(.975) translateY(4px)}to{opacity:1;transform:none}}
+.explorer-panel{transition:transform .24s var(--xc-ease),box-shadow .24s ease}
+.app-shell.explorer-open .explorer-panel{box-shadow:18px 0 48px rgba(0,0,0,.28)}
+.app-drawer:not(.hidden){animation:xcDrawerIn .22s var(--xc-ease)}
+@keyframes xcDrawerIn{from{transform:translateX(-14px);opacity:.4}to{transform:none;opacity:1}}
+.modal-dialog[open] .modal-card{animation:xcScaleIn .2s var(--xc-ease)}
+.toast{animation:xcToastIn .22s var(--xc-ease)}
+@keyframes xcToastIn{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+
+/* Explorer density closer to the supplied references. */
+.explorer-tree{padding:5px 7px 10px}
+.tree-row{min-height:52px;border-radius:8px;padding:3px 5px;gap:8px}
+.file-icon-backplate{width:34px;height:34px;flex-basis:34px;border-radius:7px;background:transparent!important;border:0!important}
+.tree-row.folder .file-icon-backplate{color:var(--xc-accent);background:color-mix(in srgb,var(--xc-accent) 8%,transparent)!important}
+.file-icon-backplate svg{width:20px;height:20px}
+.tree-name{font-size:14px;font-weight:600}.tree-meta{font-size:10px;margin-top:1px}.tree-arrow{width:20px}.tree-indent{width:calc(var(--depth,0) * 14px)}
+
+/* AI: conversation-first, not a stack of dashboard cards. */
+.ai-view{grid-template-rows:36px minmax(0,1fr) auto auto}
+.ai-statusbar{min-height:36px;padding:0 10px 0 13px;background:var(--xc-bg);border-bottom:1px solid var(--xc-line-soft)}
+.ai-status-copy{font-size:10.5px}.status-dot{width:6px;height:6px}
+.ai-model-select{height:28px;max-width:51%;border-radius:8px;font-size:10px;background:transparent;box-shadow:none;border:1px solid var(--xc-line-soft)}
+.ai-messages{padding:18px 16px 20px;}
+.ai-message{margin-bottom:18px}
+.ai-message.assistant .ai-bubble{max-width:100%}
+.ai-message.user .ai-bubble{border-radius:18px!important;padding:9px 12px;box-shadow:none;background:var(--xc-panel-2)!important}
+.ai-meta{opacity:.68}
+.ai-welcome{padding-bottom:88px}.ai-welcome-mark{background:transparent;box-shadow:none;width:42px;height:42px;margin-bottom:8px}
+.ai-welcome-mark svg{width:28px;height:28px}.ai-welcome h2{font-size:21px}.ai-starters{gap:1px;margin-top:16px}.ai-starter{height:38px;border-radius:7px;box-shadow:none;border-bottom:1px solid var(--xc-line-soft);padding:0 5px}.ai-starter:last-child{border-bottom:0}
+.ai-thinking{left:16px;bottom:91px}.thinking-orb{background:transparent;box-shadow:none;min-width:30px}
+.ai-composer-wrap{padding:5px 10px calc(6px + env(safe-area-inset-bottom,0px));background:linear-gradient(to top,var(--xc-bg) 78%,transparent)}
+.ai-context-row{overflow-x:auto;scrollbar-width:none;padding-bottom:5px}.ai-context-row::-webkit-scrollbar{display:none}.context-chip{white-space:nowrap;flex:0 0 auto;height:26px;border-radius:7px;box-shadow:none;background:transparent;border:1px solid var(--xc-line-soft)}
+.ai-composer{border-radius:17px;box-shadow:inset 0 0 0 1px var(--xc-line-soft);background:var(--xc-panel);transition:box-shadow .16s ease,transform .16s var(--xc-ease)}
+.ai-composer:focus-within{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--xc-accent) 48%,var(--xc-line))}
+
+/* Settings/provider diagnostics become compact system rows. */
+.settings-scroll{padding-bottom:calc(86px + var(--safe-bottom))}
+.settings-section{margin-bottom:18px}.settings-list{border-radius:10px;box-shadow:none;border:1px solid var(--xc-line-soft)}
+.settings-row{padding:10px 12px;min-height:44px}.settings-section-heading{padding-bottom:6px}.settings-section-heading span{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--xc-text-3)}
+.ai-provider-list{border-radius:8px;box-shadow:none;border:1px solid var(--xc-line-soft)}
+.ai-provider-row{min-height:42px;padding:7px 9px;grid-template-columns:8px minmax(0,1fr) auto}.ai-provider-meta{line-height:1.3;white-space:normal}.ai-provider-state{font-size:9.5px;max-width:76px;text-align:right}
+
+/* Light mode receives real surfaces instead of inverted-looking dark remnants. */
+html[data-theme="light"] body,html[data-theme="light"] .app-shell,html[data-theme="light"] .main-stage,html[data-theme="light"] .workspace-view{background:var(--xc-bg)}
+html[data-theme="light"] .editor-host .cm-gutters{background:var(--xc-bg)}
+html[data-theme="light"] .mobile-nav,html[data-theme="light"] .pane-header,html[data-theme="light"] .mobile-header{background:rgba(255,255,255,.96)}
+
+@media(min-width:900px){
+  .editor-host .cm-content{padding-bottom:28px}
+  .workspace-view:not(.hidden){animation-duration:.14s}
+  .tree-row{min-height:40px}.file-icon-backplate{width:28px;height:28px;flex-basis:28px}.tree-name{font-size:12.5px}.tree-meta{font-size:9px}
+}
+@media(prefers-reduced-motion:reduce){.workspace-view:not(.hidden),.app-drawer:not(.hidden),.modal-dialog[open] .modal-card,.toast,.editor-accessory{animation:none!important}.explorer-panel,.nav-item,.nav-item .nav-icon,.icon-btn{transition:none!important}}
+
+
+/* X Coder 4.2 — iOS system-style polish + language identity */
+.icon-btn svg,.nav-item svg,.drawer-list svg,.network-indicator svg{stroke-linecap:round;stroke-linejoin:round;stroke-width:1.95}
+.icon-btn,.nav-item{-webkit-tap-highlight-color:transparent}
+.header-language-icon{width:22px;height:22px;flex:0 0 22px;display:grid;place-items:center;margin-right:1px;animation:xcIconIn .18s cubic-bezier(.22,1,.36,1)}
+.header-language-icon img{display:block;width:20px;height:20px;object-fit:contain}
+.language-file-icon{display:block;width:21px;height:21px;object-fit:contain;filter:saturate(.92)}
+.file-icon-backplate .language-file-icon{width:21px;height:21px}
+.tab-row .language-file-icon{width:20px;height:20px}
+@keyframes xcIconIn{from{opacity:0;transform:scale(.82)}to{opacity:1;transform:scale(1)}}
+.settings-select{width:100%;height:42px;margin-top:6px;padding:0 36px 0 11px;border:0;border-radius:9px;background:var(--xc-bg);color:var(--xc-text);box-shadow:inset 0 0 0 1px var(--xc-line);font:inherit;appearance:auto;-webkit-appearance:menulist}
+.settings-select:focus{outline:none;box-shadow:inset 0 0 0 1px var(--xc-accent)}
+/* Editor chrome closer to a native iOS code workspace: clean gutter, exact line alignment. */
+.editor-host .cm-gutters{font-variant-numeric:tabular-nums;user-select:none;-webkit-user-select:none}
+.editor-host .cm-lineNumbers .cm-gutterElement{font-size:calc(var(--editor-font-size) - 1px);line-height:1.52}
+.editor-host .cm-content{caret-color:var(--xc-text)}
+/* Eruda is injected into the project preview and provides the interactive Console/Elements/Network/Resources/Sources tools. */
+@media(max-width:899px){
+  .browser-toolbar .icon-btn{width:38px;height:38px;border-radius:10px}
+  .browser-toolbar .icon-btn svg{width:21px;height:21px}
+  .mobile-header .header-language-icon{margin-left:-1px}
+}
+
+
+/* X Coder 4.3 — Apple SF Symbols asset integration */
+.sf-symbol{display:inline-grid;place-items:center;width:1em;height:1em;line-height:1;flex:0 0 auto;color:inherit;vertical-align:middle}
+.sf-symbol>img{display:block;width:100%;height:100%;object-fit:contain;pointer-events:none;-webkit-user-drag:none;filter:none}
+.icon-btn>.sf-symbol,.nav-icon>.sf-symbol,.rail-item>.sf-symbol,[data-icon]>.sf-symbol{width:24px;height:24px}
+.icon-btn.compact>.sf-symbol{width:20px;height:20px}
+.network-indicator .sf-symbol{width:18px;height:18px}
+.drawer-list .sf-symbol{width:21px;height:21px}
+@media (min-width:900px){.desktop-rail .rail-item>.sf-symbol{width:23px;height:23px}}
+
+/* ============================================================
+   X CODER 4.4 — Apple-platform visual language pass
+   Reference: Apple Developer / SF Symbols pages supplied by user.
+   Principles: pure content hierarchy, system typography, thin
+   separators, restrained materials, system-blue actions, and
+   controls that feel native without imitating Safari chrome.
+   ============================================================ */
+:root{
+  --ios-blue:#0a84ff;
+  --ios-blue-pressed:#0071e3;
+  --ios-bg:#000000;
+  --ios-surface:#1c1c1e;
+  --ios-surface-2:#2c2c2e;
+  --ios-surface-3:#3a3a3c;
+  --ios-separator:rgba(84,84,88,.62);
+  --ios-separator-soft:rgba(84,84,88,.34);
+  --ios-label:#ffffff;
+  --ios-label-2:rgba(235,235,245,.72);
+  --ios-label-3:rgba(235,235,245,.42);
+  --ios-fill:rgba(120,120,128,.24);
+  --ios-fill-2:rgba(120,120,128,.18);
+  --ios-material:rgba(28,28,30,.86);
+  --ios-material-strong:rgba(28,28,30,.96);
+  --ios-radius:12px;
+  --ios-ease:cubic-bezier(.2,.8,.2,1);
+  --xc-bg:var(--ios-bg);
+  --xc-panel:var(--ios-surface);
+  --xc-panel-2:var(--ios-surface-2);
+  --xc-elevated:var(--ios-surface-2);
+  --xc-hover:rgba(120,120,128,.16);
+  --xc-pressed:rgba(120,120,128,.24);
+  --xc-line:var(--ios-separator);
+  --xc-line-soft:var(--ios-separator-soft);
+  --xc-text:var(--ios-label);
+  --xc-text-2:var(--ios-label-2);
+  --xc-text-3:var(--ios-label-3);
+  --xc-accent:var(--ios-blue);
+  --xc-accent-soft:rgba(10,132,255,.14);
+  --header-h:62px;
+  --nav-h:70px;
+}
+html[data-theme="light"]{
+  --ios-blue:#007aff;
+  --ios-blue-pressed:#0062cc;
+  --ios-bg:#f2f2f7;
+  --ios-surface:#ffffff;
+  --ios-surface-2:#f2f2f7;
+  --ios-surface-3:#e5e5ea;
+  --ios-separator:rgba(60,60,67,.29);
+  --ios-separator-soft:rgba(60,60,67,.16);
+  --ios-label:#000000;
+  --ios-label-2:rgba(60,60,67,.72);
+  --ios-label-3:rgba(60,60,67,.48);
+  --ios-fill:rgba(120,120,128,.20);
+  --ios-fill-2:rgba(120,120,128,.12);
+  --ios-material:rgba(249,249,249,.86);
+  --ios-material-strong:rgba(249,249,249,.96);
+}
+
+/* Typography + global rhythm */
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Segoe UI",sans-serif;
+  font-weight:400;
+  letter-spacing:-.015em;
+  background:var(--ios-bg);
+}
+.pane-title{font-size:19px;font-weight:650;letter-spacing:-.035em}
+.pane-subtitle{font-size:11px;color:var(--ios-label-3)}
+button{font-weight:500}
+
+/* Navigation/header materials mirror Apple's restrained bars. */
+.pane-header,.mobile-header{
+  background:var(--ios-material-strong);
+  border-bottom:1px solid var(--ios-separator-soft);
+  -webkit-backdrop-filter:saturate(180%) blur(22px);
+  backdrop-filter:saturate(180%) blur(22px);
+  padding-left:max(10px,var(--safe-left));
+  padding-right:max(8px,var(--safe-right));
+}
+.mobile-header .pane-title{font-size:19px;font-weight:650}
+.icon-btn{
+  width:42px;height:42px;border-radius:50%;
+  color:var(--ios-label-2);
+  transition:background .16s ease,color .16s ease,transform .18s var(--ios-ease);
+}
+.icon-btn:hover{background:var(--ios-fill-2);color:var(--ios-label)}
+.icon-btn:active{background:var(--ios-fill);transform:scale(.92);color:var(--ios-label)}
+.icon-btn.compact{border-radius:50%}
+.network-indicator{color:var(--ios-label-2);border-radius:50%}
+.network-indicator i{border-color:var(--ios-material-strong)}
+
+/* The editor remains dense; only the chrome becomes iOS-like. */
+.editor-view,.editor-host .cm-editor,.editor-host .cm-gutters{background:var(--ios-bg)}
+.editor-host .cm-gutters{border-right:1px solid var(--ios-separator-soft);color:var(--ios-label-3)}
+.editor-host .cm-activeLine,.editor-host .cm-activeLineGutter{background:rgba(120,120,128,.08)}
+.save-status{background:var(--ios-material);color:var(--ios-label-3);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
+.editor-accessory{
+  background:var(--ios-material-strong);
+  border-top:1px solid var(--ios-separator-soft);
+  -webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);
+}
+.accessory-key{background:var(--ios-fill-2);box-shadow:none;border:0;border-radius:8px;color:var(--ios-label-2)}
+.accessory-key:active{background:var(--ios-fill);color:var(--ios-label)}
+
+/* Tab bar: system blue active state, no boxes or floating pills. */
+.mobile-nav{
+  background:var(--ios-material-strong);
+  border-top:1px solid var(--ios-separator-soft);
+  -webkit-backdrop-filter:saturate(180%) blur(24px);backdrop-filter:saturate(180%) blur(24px);
+  padding:2px max(4px,var(--safe-right)) var(--safe-bottom) max(4px,var(--safe-left));
+}
+.nav-item{height:var(--nav-h);border-radius:0;color:var(--ios-label-3);font-size:10px;font-weight:500;gap:2px}
+.nav-item .nav-icon svg,.nav-item .sf-symbol{width:24px;height:24px}
+.nav-item.active,.nav-item.active .nav-icon{color:var(--ios-blue)}
+.nav-item:active{background:transparent;transform:scale(.94)}
+.nav-item.active .nav-icon{transform:none}
+
+/* Explorer becomes a clean iOS-style hierarchy instead of cards. */
+.explorer-panel,.explorer-tree,.explorer-footer,.search-strip{background:var(--ios-bg)}
+.explorer-tree{padding:4px 0 12px}
+.tree-row{
+  min-height:51px;border-radius:0;padding:4px 12px;gap:9px;
+  border-bottom:1px solid var(--ios-separator-soft);
+}
+.tree-row:last-child{border-bottom-color:transparent}
+.tree-row:hover{background:var(--ios-fill-2)}
+.tree-row.active{background:rgba(10,132,255,.12)}
+.tree-row:active{background:var(--ios-fill)}
+.file-icon-backplate{background:transparent!important;width:31px;height:31px;flex-basis:31px;border-radius:0!important}
+.tree-row.folder .file-icon-backplate{background:transparent!important;color:var(--ios-blue)}
+.tree-name{font-size:14.5px;font-weight:560;color:var(--ios-label)}
+.tree-meta{font-size:10.5px;color:var(--ios-label-3)}
+.tree-arrow{color:var(--ios-label-3)}
+.search-strip{padding:8px 10px;border-bottom:1px solid var(--ios-separator-soft)}
+.search-strip input{height:38px;border:0;border-radius:10px;background:var(--ios-fill-2);box-shadow:none;color:var(--ios-label)}
+.search-strip input:focus{box-shadow:0 0 0 2px rgba(10,132,255,.32)}
+.explorer-footer{border-top:1px solid var(--ios-separator-soft)}
+
+/* Browser/console use edge-to-edge content and material controls. */
+.browser-view,.terminal-view{background:var(--ios-bg)}
+.browser-toolbar{
+  height:48px;background:var(--ios-material-strong);border-bottom:1px solid var(--ios-separator-soft);
+  -webkit-backdrop-filter:saturate(180%) blur(22px);backdrop-filter:saturate(180%) blur(22px);
+}
+.preview-url{background:var(--ios-fill-2);border:0;border-radius:10px;color:var(--ios-label-2)}
+.console-drawer{background:var(--ios-material-strong);border-top:1px solid var(--ios-separator);box-shadow:0 -18px 44px rgba(0,0,0,.32);-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px)}
+.console-entry{border-bottom:1px solid var(--ios-separator-soft)}
+.terminal-input-row{background:var(--ios-material-strong);border-top:1px solid var(--ios-separator-soft)}
+
+/* AI: edge-to-edge conversation, minimal system-blue accent. */
+.ai-view{background:var(--ios-bg)}
+.ai-statusbar{height:38px;background:var(--ios-bg);border-bottom:1px solid var(--ios-separator-soft);color:var(--ios-label-3)}
+.ai-model-select{background:transparent;border:0;color:var(--ios-label-2);font-weight:600}
+.ai-messages{padding:20px 16px 24px}
+.ai-message{margin-bottom:20px}
+.ai-message.assistant .ai-bubble{background:transparent!important;border:0!important;color:var(--ios-label);padding:0!important;border-radius:0!important;max-width:100%}
+.ai-message.user .ai-bubble{background:var(--ios-surface)!important;border:0!important;color:var(--ios-label);border-radius:18px!important;padding:9px 13px!important}
+.ai-meta{font-size:10px;color:var(--ios-label-3)}
+.ai-composer-wrap{background:linear-gradient(to top,var(--ios-bg) 82%,transparent);border-top:0}
+.ai-composer{background:var(--ios-surface);border:0;border-radius:18px;box-shadow:inset 0 0 0 .5px var(--ios-separator)}
+.ai-composer:focus-within{box-shadow:inset 0 0 0 1px rgba(10,132,255,.7)}
+.send-btn{border-radius:50%;background:var(--ios-blue)}
+.send-btn:active{background:var(--ios-blue-pressed);transform:scale(.92)}
+.context-chip{background:transparent;border:0;border-radius:0;color:var(--ios-label-3);padding:0 6px;height:28px}
+.context-chip.active{background:transparent;color:var(--ios-blue);border:0}
+.ai-thinking{color:var(--ios-label-3)}
+
+/* Settings: Apple grouped-list hierarchy, not dashboard cards. */
+.settings-view,.git-view,.tabs-view{background:var(--ios-bg)}
+.settings-scroll{padding:18px 14px calc(96px + var(--safe-bottom));max-width:760px}
+.settings-section{margin-bottom:26px}
+.settings-section-heading{display:block;padding:0 4px 8px}
+.settings-section-heading span{font-size:13px;font-weight:600;letter-spacing:-.01em;text-transform:none;color:var(--ios-label-2)}
+.settings-section-heading small{display:block!important;margin-top:3px;text-align:left;font-size:11px;line-height:1.35;color:var(--ios-label-3)}
+.settings-list{background:var(--ios-surface);border:0;border-radius:12px;box-shadow:none;overflow:hidden}
+.settings-row{min-height:48px;padding:11px 14px;border-bottom:1px solid var(--ios-separator-soft)}
+.settings-row:last-child{border-bottom:0}
+.settings-row-copy strong{font-size:14px;font-weight:560;color:var(--ios-label)}
+.settings-row-copy span,.row-description,.field-label,.range-label{font-size:11.5px;color:var(--ios-label-3)}
+.field-label input,.settings-select{height:40px;background:var(--ios-fill-2);box-shadow:none;border:0;border-radius:9px;color:var(--ios-label)}
+.field-label input:focus,.settings-select:focus{box-shadow:0 0 0 2px rgba(10,132,255,.34)}
+.segmented-control{background:var(--ios-fill-2);box-shadow:none;border:0;border-radius:9px;padding:2px}
+.segmented-control button{height:31px;color:var(--ios-label-2)}
+.segmented-control button.active{background:var(--ios-surface-3);color:var(--ios-label);box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.primary-btn{background:var(--ios-blue);color:#fff;border:0;border-radius:9px;font-weight:600}
+.primary-btn:active{background:var(--ios-blue-pressed);transform:scale(.985)}
+.secondary-btn{background:var(--ios-fill-2);border:0;color:var(--ios-label);border-radius:9px}
+.secondary-btn:active{background:var(--ios-fill)}
+.text-btn{color:var(--ios-blue)}
+.danger-btn{background:rgba(255,69,58,.14);border:0;color:#ff6961}
+.ai-provider-list{border:0;border-radius:10px;background:var(--ios-fill-2);overflow:hidden}
+.ai-provider-row{border:0;border-bottom:1px solid var(--ios-separator-soft);border-radius:0;background:transparent;min-height:44px}
+.ai-provider-row:last-child{border-bottom:0}
+.ai-provider-name{color:var(--ios-label);font-weight:560}.ai-provider-meta,.ai-provider-state{color:var(--ios-label-3)}
+.ai-usage-summary,.puter-usage,.diagnostics-card pre{background:var(--ios-fill-2);border:0;border-radius:9px;color:var(--ios-label-2)}
+
+/* Git and tabs follow the same row language. */
+.git-layout{padding:18px 14px calc(96px + var(--safe-bottom));max-width:760px;margin:0 auto;width:100%}
+.git-layout .settings-card{background:var(--ios-surface);border:0;border-radius:12px;box-shadow:none}
+.git-change-row{border-top:1px solid var(--ios-separator-soft)}
+.tabs-list{padding:0 0 calc(92px + var(--safe-bottom))}
+.tab-row{min-height:54px;border-radius:0;border-bottom:1px solid var(--ios-separator-soft);padding:7px 13px}
+.tab-row.active{background:rgba(10,132,255,.12)}
+.tab-row-name{font-size:14px;font-weight:560;color:var(--ios-label)}.tab-row-path{color:var(--ios-label-3)}
+
+/* Menus, sheets, and dialogs use a restrained iOS material treatment. */
+.app-drawer{
+  background:var(--ios-material-strong);border-right:0;box-shadow:18px 0 52px rgba(0,0,0,.42);
+  -webkit-backdrop-filter:saturate(180%) blur(30px);backdrop-filter:saturate(180%) blur(30px);
+}
+.drawer-header{border-bottom:1px solid var(--ios-separator-soft)}
+.xcoder-mark{background:var(--ios-label);color:var(--ios-bg);border-radius:9px}
+.drawer-list button{height:50px;border-radius:10px;color:var(--ios-label);font-size:15px;font-weight:500}
+.drawer-list button>span{color:var(--ios-blue)}
+.drawer-list button:active{background:var(--ios-fill)}
+.backdrop{background:rgba(0,0,0,.44);-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px)}
+.modal-dialog::backdrop{background:rgba(0,0,0,.44);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.modal-card{background:var(--ios-material-strong);border:0;border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.46);padding:18px}
+.modal-card h2{font-size:18px;font-weight:650;text-align:center}.modal-card p{text-align:center;color:var(--ios-label-2)}
+.modal-card input{background:var(--ios-fill-2);border:0;box-shadow:none;border-radius:9px;color:var(--ios-label)}
+.context-menu{background:var(--ios-material-strong);border:0;border-radius:14px;box-shadow:0 18px 48px rgba(0,0,0,.4)}
+.context-menu button{border-radius:9px;color:var(--ios-label)}
+.context-menu button:active{background:var(--ios-fill)}
+.toast{background:var(--ios-material-strong);border:0;color:var(--ios-label);border-radius:12px;box-shadow:0 10px 32px rgba(0,0,0,.28);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}
+
+/* Motion: subtle and purposeful, similar to native navigation transitions. */
+.workspace-view:not(.hidden){animation:iosViewIn .22s var(--ios-ease)}
+@keyframes iosViewIn{from{opacity:.35;transform:translateY(5px) scale(.997)}to{opacity:1;transform:none}}
+.app-drawer:not(.hidden){animation:iosDrawerIn .28s var(--ios-ease)}
+@keyframes iosDrawerIn{from{opacity:.35;transform:translateX(-28px)}to{opacity:1;transform:none}}
+.modal-dialog[open] .modal-card{animation:iosModalIn .24s var(--ios-ease)}
+@keyframes iosModalIn{from{opacity:0;transform:scale(.94) translateY(10px)}to{opacity:1;transform:none}}
+
+/* Desktop translates the same language into a professional workstation. */
+@media(min-width:900px){
+  :root{--header-h:52px}
+  .pane-header{background:var(--ios-surface)}
+  .explorer-panel,.desktop-rail,.desktop-utility{background:var(--ios-surface)}
+  .tree-row{min-height:38px;padding:2px 8px;border-bottom:0}
+  .tree-row.active{border-radius:6px}
+  .file-icon-backplate{width:25px;height:25px;flex-basis:25px}
+  .tree-name{font-size:12.5px}.tree-meta{display:none}
+  .settings-scroll,.git-layout{padding-bottom:24px}
+  .mobile-nav{display:none}
+}
+
+@media(max-width:899px){
+  .settings-section-heading small{display:none!important}
+  .settings-scroll{padding-left:12px;padding-right:12px}
+  .git-layout{padding-left:12px;padding-right:12px}
+  .ai-messages{padding-left:15px;padding-right:15px}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .workspace-view:not(.hidden),.app-drawer:not(.hidden),.modal-dialog[open] .modal-card{animation:none!important}
+}

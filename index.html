@@ -3,14 +3,16 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="theme-color" content="#0c0c0f" />
+  <meta name="theme-color" content="#000000" />
   <meta name="color-scheme" content="dark light" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="format-detection" content="telephone=no" />
   <meta name="apple-mobile-web-app-title" content="X Coder" />
   <meta name="description" content="X Coder is a mobile-first browser IDE with local projects, live preview, GitHub sync, and a multi-provider AI coding agent." />
   <link rel="manifest" href="./manifest.webmanifest" />
-  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png" />
   <link rel="icon" href="./icons/icon-192.png" />
   <link rel="stylesheet" href="./styles.css" />
   <script src="https://js.puter.com/v2/" defer></script>
@@ -61,6 +63,7 @@
       <header id="mobileHeader" class="mobile-header pane-header">
         <button class="icon-btn" id="hamburgerBtn" aria-label="Open menu" data-icon="menu"></button>
         <div class="pane-title-wrap">
+          <span id="mobileLanguageIcon" class="header-language-icon hidden" aria-hidden="true"></span>
           <h1 id="mobileTitle" class="pane-title">Editor</h1>
           <span id="mobileSubtitle" class="pane-subtitle"></span>
         </div>
@@ -86,7 +89,8 @@
           <button class="icon-btn" id="previewRefreshBtn" aria-label="Refresh preview" data-icon="refresh"></button>
           <div class="preview-url" id="previewUrl">project://index.html</div>
           <button class="icon-btn" id="previewFullscreenBtn" aria-label="Fullscreen preview" data-icon="maximize"></button>
-          <button class="icon-btn" id="previewConsoleBtn" aria-label="Preview console" data-icon="console"></button>
+          <button class="icon-btn" id="previewConsoleBtn" aria-label="Open Web Console" title="Web Console" data-icon="console"></button>
+          <button class="icon-btn" id="previewLogsBtn" aria-label="Captured logs" title="Captured logs" data-icon="list"></button>
         </div>
         <div class="preview-stage">
           <iframe id="previewFrame" title="Project preview" sandbox="allow-scripts allow-forms allow-modals allow-pointer-lock allow-downloads"></iframe>
@@ -228,8 +232,17 @@
             <div class="settings-section-heading"><span>Editor</span><small>Touch-friendly coding controls without clutter.</small></div>
             <div class="settings-list">
               <div class="settings-row settings-row-stack">
+                <label class="field-label">Code color theme
+                  <select id="syntaxThemeSelect" class="settings-select">
+                    <option value="vscode-dark">VS Code Dark+</option>
+                    <option value="vscode-light">VS Code Light+</option>
+                    <option value="github-dark">GitHub Dark</option>
+                    <option value="dracula">Dracula</option>
+                    <option value="xcoder">X Coder</option>
+                  </select>
+                </label>
                 <label class="toggle-row"><span>Programming accessory bar</span><input id="accessoryToggle" type="checkbox" checked /></label>
-                <label class="toggle-row"><span>Word wrap</span><input id="wordWrapToggle" type="checkbox" checked /></label>
+                <label class="toggle-row"><span>Word wrap</span><input id="wordWrapToggle" type="checkbox" /></label>
                 <label class="range-label"><span>Font size</span><input id="fontSizeRange" type="range" min="12" max="20" step="1" value="14" /></label>
               </div>
             </div>
