@@ -76,3 +76,23 @@ The active agent conversation is stored per project in IndexedDB. If one provide
 - Local browser terminal commands
 - GitHub pull/status/commit/push
 - PWA / Add to Home Screen
+
+## X Coder 4.0 appearance and BazaarLink
+
+X Coder 4.0 adds a complete visual refresh based on the supplied mobile references. Appearance can be switched between **System**, **Dark**, and **Light** in Settings. The editor theme follows the selected appearance.
+
+The Cloudflare Worker can now use BazaarLink as another AI route. Add the secret in Cloudflare:
+
+```bash
+cd worker
+npx wrangler secret put BAZAARLINK_API_KEY
+```
+
+The included Worker configuration uses:
+
+```toml
+BAZAARLINK_API_BASE = "https://api.bazaarlink.ai/v1"
+BAZAARLINK_MODEL = "auto:free"
+```
+
+Never put `BAZAARLINK_API_KEY` in frontend JavaScript, GitHub Pages variables that are embedded into the site, or any committed file. It belongs only in the Worker secret store.

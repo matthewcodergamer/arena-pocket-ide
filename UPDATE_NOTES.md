@@ -50,3 +50,16 @@ Service-worker cache version is now `xcoder-v3.0.0` so iOS installs update the n
 ## Deployment helper
 
 See `DEPLOY_X_CODER_3.md` for the exact Worker/frontend deployment order and health-test URLs.
+
+# X Coder 4.0 — UI/UX + BazaarLink update
+
+- Rebuilt the visual layer around the supplied iPhone references: flatter Apple-like surfaces, denser VS Code-style information hierarchy, compact toolbars, consistent outline SVG icons, smaller file rows, and a more full-screen editor.
+- Added System / Dark / Light appearance modes with live editor theme updates.
+- Reworked the AI screen into a cleaner assistant conversation layout with a centered empty state, starter actions, subtle thinking animation, compact context chips, and safer/more useful error messages.
+- Added a persistent network status indicator and improved online/offline behavior.
+- Added a short polished boot animation instead of flashing partially initialized UI.
+- Preserved project storage, preview, terminal, Git/GitHub, AI proposals, diffs, checkpoints, and PWA behavior.
+- Added BazaarLink as a Worker AI provider using `BAZAARLINK_API_KEY`, `BAZAARLINK_API_BASE`, and `BAZAARLINK_MODEL`.
+- Defaults BazaarLink to `auto:free`. When `FREE_ONLY=true`, X Coder also sends `X-Free-Fallback: false` so a free-route request does not intentionally fall through to paid balance.
+- Increased automatic provider route attempts to 8 so the new provider can participate without removing existing fallbacks.
+- Bumped the service-worker cache to `xcoder-v4.0.0` so deployed devices pick up the redesign instead of staying on the cached v3 shell.

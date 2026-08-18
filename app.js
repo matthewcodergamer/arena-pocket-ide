@@ -53,6 +53,19 @@ function hydrateIcons(root=document){
   });
 }
 
+
+const THEME_KEY = 'xcoderTheme';
+function preferredTheme(){const saved=localStorage.getItem(THEME_KEY)||'system';if(saved==='light'||saved==='dark')return saved;return matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';}
+function applyTheme(choice=localStorage.getItem(THEME_KEY)||'system', reloadEditor=false){
+  const actual=choice==='system'?(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):choice;
+  document.documentElement.dataset.theme=actual;document.documentElement.style.colorScheme=actual;
+  $$('[data-theme-choice]').forEach(b=>b.classList.toggle('active',b.dataset.themeChoice===choice));
+  if(reloadEditor&&typeof state!=='undefined'&&state?.activePath)loadActiveEditor().catch(()=>{});
+}
+function updateConnectivity(){const btn=$('#networkStatusBtn');if(!btn)return;const online=navigator.onLine;btn.classList.toggle('offline',!online);btn.setAttribute('aria-label',online?'Online':'Offline');btn.title=online?'Online':'Offline';}
+function hideBootScreen(){const boot=$('#bootScreen');if(!boot)return;boot.classList.add('done');setTimeout(()=>boot.remove(),280);}
+function setAIThinking(show,text='Thinking'){const el=$('#aiThinking');if(!el)return;el.classList.toggle('hidden',!show);const label=$('#aiThinkingText');if(label)label.textContent=text;}
+
 const NAV = [
   ['ai','spark','AI'],['browser','globe','Browser'],['editor','code','Editor'],
   ['terminal','terminal','Terminal'],['git','git','Git'],['tabs','tabs','Tabs']
@@ -361,7 +374,18 @@ async function loadCodeMirror(){
   }catch(e){console.error(e);throw new Error('CodeMirror could not load. Connect once so the editor package can be cached.');}
 }
 function languageFor(path){const c=state.cm,e=posix.ext(path);if(!c)return[];if(e==='.js'||e==='.mjs'||e==='.jsx')return c.jsMod.javascript({jsx:e==='.jsx'});if(e==='.ts'||e==='.tsx')return c.jsMod.javascript({typescript:true,jsx:e==='.tsx'});if(e==='.html'||e==='.htm')return c.htmlMod.html();if(e==='.css')return c.cssMod.css();if(e==='.json')return c.jsonMod.json();if(e==='.md'||e==='.markdown')return c.mdMod.markdown();return[];}
-function editorTheme(){const c=state.cm;return c.EditorView.theme({'&':{backgroundColor:'#0b0b0e',color:'#dddde4'},'.cm-content':{caretColor:'#fff'},'&.cm-focused .cm-cursor':{borderLeftColor:'#fff'},'&.cm-focused .cm-selectionBackground,.cm-selectionBackground,::selection':{backgroundColor:'rgba(109,101,255,.32)'},'.cm-gutters':{backgroundColor:'#0a0a0d',color:'#575760',borderRight:'1px solid #17171b'},'.cm-foldPlaceholder':{backgroundColor:'#1c1c22',border:'0',color:'#999'}},{dark:true});}
+function editorTheme(){
+  const c=state.cm;const light=document.documentElement.dataset.theme==='light';
+  return c.EditorView.theme({
+    '&':{backgroundColor:light?'#ffffff':'#0b0b0d',color:light?'#1d1d1f':'#e7e7eb'},
+    '.cm-content':{caretColor:light?'#111114':'#ffffff'},
+    '&.cm-focused .cm-cursor':{borderLeftColor:light?'#111114':'#ffffff'},
+    '&.cm-focused .cm-selectionBackground,.cm-selectionBackground,::selection':{backgroundColor:light?'rgba(88,86,214,.18)':'rgba(109,101,255,.30)'},
+    '.cm-gutters':{backgroundColor:light?'#fbfbfc':'#0a0a0c',color:light?'#9a9aa1':'#5e5e67',borderRight:`1px solid ${light?'#ececf0':'#18181c'}`},
+    '.cm-activeLine,.cm-activeLineGutter':{backgroundColor:light?'rgba(0,0,0,.025)':'rgba(255,255,255,.025)'},
+    '.cm-foldPlaceholder':{backgroundColor:light?'#eeeef2':'#1c1c22',border:'0',color:light?'#66666d':'#999'}
+  },{dark:!light});
+}
 async function ensureEditor(){
   if(state.editor)return;$('#editorEmpty').classList.add('hidden');
   try{await loadCodeMirror();}catch(e){showEditorFallback(e.message);return;}
@@ -560,7 +584,14 @@ function addAIMessage(role,text,meta=''){
   if(state.ai.messages.length>100)state.ai.messages.splice(0,state.ai.messages.length-100);
   renderAIMessages();persistAIConversation();
 }
-function renderAIMessages(){const h=$('#aiMessages');if(!h)return;h.innerHTML=state.ai.messages.map(m=>`<div class="ai-message ${m.role}"><div class="ai-bubble">${renderSimpleMarkdown(m.text)}</div><div class="ai-meta">${escapeHtml(m.meta||new Date(m.time).toLocaleTimeString())}</div></div>`).join('');h.scrollTop=h.scrollHeight;}
+function renderAIMessages(){
+  const h=$('#aiMessages');if(!h)return;
+  if(!state.ai.messages.length){
+    h.innerHTML=`<div class="ai-welcome"><div class="ai-welcome-mark">${svgIcon('spark')}</div><h2>What are you building?</h2><p>Ask X Coder to explain, debug, plan, or propose safe edits to your current project.</p><div class="ai-starters"><button class="ai-starter" data-prompt="Explain the current file and point out anything risky or broken.">Explain current file</button><button class="ai-starter" data-prompt="Review the project for errors and propose the smallest safe fixes.">Debug project</button><button class="ai-starter" data-prompt="Help me improve this project without changing working behavior.">Improve project</button></div></div>`;
+    $$('.ai-starter',h).forEach(b=>b.addEventListener('click',()=>{const input=$('#aiInput');input.value=b.dataset.prompt||'';autoSizeTextarea(input);input.focus();}));return;
+  }
+  h.innerHTML=state.ai.messages.map(m=>`<div class="ai-message ${m.role}"><div class="ai-bubble">${renderSimpleMarkdown(m.text)}</div><div class="ai-meta">${escapeHtml(m.meta||new Date(m.time).toLocaleTimeString())}</div></div>`).join('');h.scrollTop=h.scrollHeight;
+}
 function renderSimpleMarkdown(text=''){
   let s=escapeHtml(text);s=s.replace(/```([\w-]*)\n([\s\S]*?)```/g,(_,lang,code)=>`<pre><code>${code}</code></pre>`);s=s.replace(/`([^`]+)`/g,'<code>$1</code>');s=s.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');s=s.replace(/\n/g,'<br>');return s;
 }
@@ -699,17 +730,24 @@ async function smartAgentCall(messages,signal){
   throw firstError;
 }
 async function runAgent(){
-  if(state.ai.busy)return;const input=$('#aiInput');const prompt=input.value.trim();if(!prompt)return;input.value='';autoSizeTextarea(input);addAIMessage('user',prompt);state.ai.busy=true;state.ai.abort=new AbortController();$('#aiSendBtn').classList.add('hidden');$('#aiStopBtn').classList.remove('hidden');setAIStatus('Reading your project…','busy');startAIStatusTicker();
+  if(state.ai.busy)return;const input=$('#aiInput');const prompt=input.value.trim();if(!prompt)return;
+  input.value='';autoSizeTextarea(input);addAIMessage('user',prompt);state.ai.busy=true;state.ai.abort=new AbortController();
+  $('#aiSendBtn').classList.add('hidden');$('#aiStopBtn').classList.remove('hidden');setAIThinking(true,'Thinking');setAIStatus('Reading your project…','busy');startAIStatusTicker();
   try{
     let messages=[{role:'user',content:await buildInitialAgentContext(prompt)}];let parsed=null,lastResult=null;
     for(let round=0;round<4;round++){
-      setAIStatus(round===0?'Analyzing the project…':'Reading the extra context the model requested…','busy');lastResult=await smartAgentCall(messages,state.ai.abort.signal);await recordAIUsage(lastResult);const text=lastResult.text||'';parsed=parseAgentJSON(text);state.ai.lastRoute=lastResult;
-      if(parsed.requests.length){const results=await executeAgentRequests(parsed.requests);messages.push({role:'assistant',content:text},{role:'user',content:`TOOL RESULTS (trusted output from IDE tools):\n${JSON.stringify(results)}`});continue;}break;
+      setAIThinking(true,round===0?'Thinking':'Reading project');setAIStatus(round===0?'Analyzing the project…':'Reading the extra context the model requested…','busy');
+      lastResult=await smartAgentCall(messages,state.ai.abort.signal);await recordAIUsage(lastResult);const text=lastResult.text||'';parsed=parseAgentJSON(text);state.ai.lastRoute=lastResult;
+      if(parsed.requests.length){const results=await executeAgentRequests(parsed.requests);messages.push({role:'assistant',content:text},{role:'user',content:`TOOL RESULTS (trusted output from IDE tools):
+${JSON.stringify(results)}`});continue;}break;
     }
-    if(!parsed)throw new Error('No agent response');const meta=routeLabel(lastResult);addAIMessage('assistant',parsed.message||'Analysis complete.',meta);if(parsed.operations.length){setAIStatus('Validating the proposed file changes…','busy');state.ai.proposal=await prepareProposal(parsed.operations);renderProposal();}else state.ai.proposal=null;
-    const switched=(lastResult?.attempts||[]).filter(a=>!a.ok).length>0||lastResult?.fallbackUsed;setAIStatus(state.ai.proposal?`${meta} · proposal ready`:switched?`${meta} · recovered through fallback`:`${meta} · ready`,'ready');
-  }catch(e){if(e.name==='AbortError'){addAIMessage('assistant','Stopped. No proposed changes were applied.');setAIStatus('Stopped','error');}else{const attempts=e.attempts?.length||e.firstError?.attempts?.length||0;const msg=attempts?`X Coder kept your project context and tried ${attempts} backend route${attempts===1?'':'s'}${puterSignedIn()?' plus the Puter fallback':''}, but none completed this request. No file changes were applied. Try again in a moment.`:`X Coder could not finish this request: ${e.message}`;addAIMessage('assistant',msg);toast('AI routes are temporarily unavailable','error');setAIStatus('All AI routes are busy','error');}}
-  finally{stopAIStatusTicker();state.ai.busy=false;state.ai.abort=null;$('#aiSendBtn').classList.remove('hidden');$('#aiStopBtn').classList.add('hidden');}
+    if(!parsed)throw new Error('The AI route returned no usable response.');const meta=routeLabel(lastResult);addAIMessage('assistant',parsed.message||'Analysis complete.',meta);
+    if(parsed.operations.length){setAIStatus('Checking the proposed file changes…','busy');state.ai.proposal=await prepareProposal(parsed.operations);renderProposal();}else state.ai.proposal=null;
+    const switched=(lastResult?.attempts||[]).filter(a=>!a.ok).length>0||lastResult?.fallbackUsed;setAIStatus(state.ai.proposal?`${meta} · changes ready to review`:switched?`${meta} · connected through fallback`:`${meta} · ready`,'ready');
+  }catch(e){
+    if(e.name==='AbortError'){addAIMessage('assistant','Stopped. Nothing was written to your files.');setAIStatus('Stopped','error');}
+    else{const attempts=e.attempts?.length||e.firstError?.attempts?.length||0;const technical=String(e?.message||'Unknown provider error');const friendly=attempts?`I couldn’t get a response after trying ${attempts} backend route${attempts===1?'':'s'}${puterSignedIn()?' and the Puter fallback':''}. Your project and unsaved work are safe. The available routes may be busy, rate-limited, or temporarily unavailable. Try again shortly or choose another model in Settings.`:`I couldn’t complete that AI request. Your project was not changed. ${technical}`;addAIMessage('assistant',friendly,'Request not completed');toast('AI unavailable right now · your files are safe','error');setAIStatus('AI temporarily unavailable','error');console.warn('[X Coder AI]',technical,e?.attempts||e?.firstError?.attempts||[]);}
+  }finally{stopAIStatusTicker();setAIThinking(false);state.ai.busy=false;state.ai.abort=null;$('#aiSendBtn').classList.remove('hidden');$('#aiStopBtn').classList.add('hidden');}
 }
 async function prepareProposal(ops){
   const out=[];for(const raw of ops.slice(0,50)){
@@ -785,10 +823,10 @@ async function pushGitHub(){
 }
 function throwGit(msg){toast(msg,'error');throw new Error(msg);}
 
-function diagnosticsObject(){return {product:'X Coder',ideVersion:'3.0.0',userAgent:navigator.userAgent,standalone:matchMedia('(display-mode: standalone)').matches||navigator.standalone===true,viewport:`${innerWidth}x${innerHeight}`,visualViewport:window.visualViewport?`${Math.round(visualViewport.width)}x${Math.round(visualViewport.height)}`:'unavailable',devicePixelRatio:devicePixelRatio,online:navigator.onLine,serviceWorker:'serviceWorker'in navigator,indexedDB:'indexedDB'in window,projectId:state.project?.id,fileCount:state.fs?.entries().filter(r=>r.type==='file').length||0,openTabs:state.openTabs.length,activeFile:state.activePath,previewLogs:state.console.length,aiRouterConfigured:!!arenaConfig().proxy,aiSelection:arenaConfig().selection,aiLastRoute:state.ai.lastRoute?routeLabel(state.ai.lastRoute):null,aiProviders:state.ai.catalog.providers.map(p=>({id:p.id,status:p.status,configured:p.configured})),puterSignedIn:puterSignedIn(),gitRepo:state.git.repo||null};}
+function diagnosticsObject(){return {product:'X Coder',ideVersion:'4.0.0',userAgent:navigator.userAgent,standalone:matchMedia('(display-mode: standalone)').matches||navigator.standalone===true,viewport:`${innerWidth}x${innerHeight}`,visualViewport:window.visualViewport?`${Math.round(visualViewport.width)}x${Math.round(visualViewport.height)}`:'unavailable',devicePixelRatio:devicePixelRatio,online:navigator.onLine,serviceWorker:'serviceWorker'in navigator,indexedDB:'indexedDB'in window,projectId:state.project?.id,fileCount:state.fs?.entries().filter(r=>r.type==='file').length||0,openTabs:state.openTabs.length,activeFile:state.activePath,previewLogs:state.console.length,aiRouterConfigured:!!arenaConfig().proxy,aiSelection:arenaConfig().selection,aiLastRoute:state.ai.lastRoute?routeLabel(state.ai.lastRoute):null,aiProviders:state.ai.catalog.providers.map(p=>({id:p.id,status:p.status,configured:p.configured})),puterSignedIn:puterSignedIn(),gitRepo:state.git.repo||null};}
 function updateDiagnostics(){$('#diagnosticsText').textContent=JSON.stringify(diagnosticsObject(),null,2);}
 
-function renderAll(){buildNav();renderExplorer();renderTabs();renderAIMessages();renderProposal();updateHeader();$('#explorerProjectName').textContent=state.project?.name||'';$('#gitRepoInput').value=state.git.repo||'';$('#gitBranchInput').value=state.git.branch||'main';$('#arenaProxyInput').value=arenaConfig().proxy;renderProviderStatus();renderAIModelOptions();renderAIUsageSummary();$('#accessoryToggle').checked=state.editorSetting.accessory;$('#wordWrapToggle').checked=state.editorSetting.wrap;$('#fontSizeRange').value=state.editorSetting.fontSize;document.documentElement.style.setProperty('--editor-font-size',state.editorSetting.fontSize+'px');updateDiagnostics();}
+function renderAll(){applyTheme(localStorage.getItem(THEME_KEY)||'system');updateConnectivity();buildNav();renderExplorer();renderTabs();renderAIMessages();renderProposal();updateHeader();$('#explorerProjectName').textContent=state.project?.name||'';$('#gitRepoInput').value=state.git.repo||'';$('#gitBranchInput').value=state.git.branch||'main';$('#arenaProxyInput').value=arenaConfig().proxy;renderProviderStatus();renderAIModelOptions();renderAIUsageSummary();$('#accessoryToggle').checked=state.editorSetting.accessory;$('#wordWrapToggle').checked=state.editorSetting.wrap;$('#fontSizeRange').value=state.editorSetting.fontSize;document.documentElement.style.setProperty('--editor-font-size',state.editorSetting.fontSize+'px');updateDiagnostics();}
 function autoSizeTextarea(el){el.style.height='auto';el.style.height=Math.min(140,Math.max(38,el.scrollHeight))+'px';}
 
 function bindUI(){
@@ -809,11 +847,14 @@ function bindUI(){
   $('#arenaTestBtn').addEventListener('click',async()=>{const proxy=$('#arenaProxyInput').value.trim().replace(/\/$/,'');localStorage.setItem('xcoderProxyUrl',proxy);localStorage.setItem('arenaProxyUrl',proxy);await checkArenaConnection(true,true);});
   $('#puterSignInBtn').addEventListener('click',async()=>{try{if(!window.puter?.auth)throw new Error('Puter.js has not loaded yet.');await puter.auth.signIn();await loadPuterCatalog(true);renderProviderStatus();renderAIModelOptions();toast('Puter connected','success');}catch(e){toast(e?.msg||e?.message||String(e),'error');}});
   $('#puterRefreshBtn').addEventListener('click',async()=>{await loadPuterCatalog(true);renderProviderStatus();renderAIModelOptions();});
+  $$('#themeControl [data-theme-choice]').forEach(btn=>btn.addEventListener('click',()=>{const choice=btn.dataset.themeChoice;localStorage.setItem(THEME_KEY,choice);applyTheme(choice,true);toast(`${choice==='system'?'System':choice[0].toUpperCase()+choice.slice(1)} appearance`,'success');}));
+  $('#networkStatusBtn')?.addEventListener('click',()=>toast(navigator.onLine?'Internet connection is available':'You are offline. Local editing still works.',navigator.onLine?'success':'error'));
   $('#accessoryToggle').addEventListener('change',e=>{state.editorSetting.accessory=e.target.checked;projectSettingsSet('editorSettings',state.editorSetting);renderAccessory();});$('#wordWrapToggle').addEventListener('change',async e=>{state.editorSetting.wrap=e.target.checked;projectSettingsSet('editorSettings',state.editorSetting);await loadActiveEditor();});$('#fontSizeRange').addEventListener('input',e=>{state.editorSetting.fontSize=+e.target.value;document.documentElement.style.setProperty('--editor-font-size',e.target.value+'px');projectSettingsSet('editorSettings',state.editorSetting);});
   $('#importFilesBtn').addEventListener('click',()=>$('#filePicker').click());$('#filePicker').addEventListener('change',e=>importFiles(e.target.files).finally(()=>e.target.value=''));$('#importZipBtn').addEventListener('click',()=>$('#zipPicker').click());$('#zipPicker').addEventListener('change',e=>{const f=e.target.files[0];if(f)importZip(f).catch(err=>toast(err.message,'error'));e.target.value='';});$('#exportZipBtn').addEventListener('click',exportZip);$('#newProjectBtn').addEventListener('click',createNewProject);$('#resetProjectBtn').addEventListener('click',resetProject);$('#copyDiagnosticsBtn').addEventListener('click',()=>navigator.clipboard?.writeText($('#diagnosticsText').textContent).then(()=>toast('Diagnostics copied')));
   $('#gitPullBtn').addEventListener('click',pullGitHub);$('#gitRefreshBtn').addEventListener('click',refreshGitStatus);$('#gitPushBtn').addEventListener('click',()=>pushGitHub().catch(e=>toast(e.message,'error')));
   window.addEventListener('message',e=>{if(e.data?.__arenaPreview)logPreview(e.data.level||'log',e.data.args||[],e.data.time);});
   document.addEventListener('keydown',e=>{const mod=e.metaKey||e.ctrlKey;if(mod&&e.key.toLowerCase()==='s'){e.preventDefault();flushSave().then(()=>toast('File saved'));}if(mod&&e.key.toLowerCase()==='p'){e.preventDefault();openExplorer();$('#explorerSearchWrap').classList.remove('hidden');$('#explorerSearchInput').focus();}if(mod&&e.key.toLowerCase()==='f'&&state.view==='editor'){e.preventDefault();editorCommand('find');}if(mod&&e.key==='`'){e.preventDefault();setView('terminal');}if(mod&&e.key.toLowerCase()==='b'){e.preventDefault();openExplorer();}});
+  window.addEventListener('online',()=>{updateConnectivity();toast('Back online','success');checkArenaConnection(false,true);});window.addEventListener('offline',()=>{updateConnectivity();setAIStatus('Offline · local editing is still available','error');});
   document.addEventListener('visibilitychange',()=>{if(document.hidden){flushSave();saveProjectMeta();}else if(Date.now()-state.ai.catalog.loadedAt>300000&&!state.ai.busy){checkArenaConnection(false,true);}});window.addEventListener('load',()=>{if(window.puter&&!state.ai.busy)checkArenaConnection(false,false);},{once:true});window.addEventListener('beforeunload',()=>{flushSave();saveProjectMeta();});
   window.addEventListener('resize',()=>{if(matchMedia('(min-width:900px)').matches)closeExplorer();setView(state.view);});
   setupVisualViewport();
@@ -835,8 +876,9 @@ function setupVisualViewport(){if(!window.visualViewport)return;const update=()=
 async function registerSW(){if('serviceWorker'in navigator){try{await navigator.serviceWorker.register('./sw.js',{scope:'./'});}catch(e){console.warn('Service worker registration failed',e);}}}
 
 async function init(){
-  bindUI();termPrint('X Coder browser terminal');termPrint('Type help for supported commands. Node/npm are capability-gated and not faked.','muted');
-  try{await ensureProject();state.editorSetting={...state.editorSetting,...(await projectSettingsGet('editorSettings',{}))};state.explorerSort=await projectSettingsGet('explorerSort','name');renderAll();await loadActiveEditor();setView(state.view);await registerSW();checkArenaConnection(false,true);state.ai.healthTimer=setInterval(()=>{if(navigator.onLine&&!state.ai.busy)checkArenaConnection(false,true);},300000);}catch(e){console.error(e);toast(`Startup failed: ${e.message}`,'error');$('#editorHost').innerHTML=`<div class="empty-state"><h2>IDE startup failed</h2><p>${escapeHtml(e.message)}</p></div>`;}
+  applyTheme(localStorage.getItem(THEME_KEY)||'system');updateConnectivity();bindUI();termPrint('X Coder browser terminal');termPrint('Type help for supported commands. Node/npm are capability-gated and not faked.','muted');
+  try{await ensureProject();state.editorSetting={...state.editorSetting,...(await projectSettingsGet('editorSettings',{}))};state.explorerSort=await projectSettingsGet('explorerSort','name');renderAll();await loadActiveEditor();setView(state.view);await registerSW();checkArenaConnection(false,true);state.ai.healthTimer=setInterval(()=>{if(navigator.onLine&&!state.ai.busy)checkArenaConnection(false,true);},300000);}catch(e){console.error(e);toast(`Startup failed: ${e.message}`,'error');$('#editorHost').innerHTML=`<div class="empty-state"><h2>IDE startup failed</h2><p>${escapeHtml(e.message)}</p></div>`;}finally{hideBootScreen();}
 }
 
+matchMedia('(prefers-color-scheme: light)').addEventListener?.('change',()=>{if((localStorage.getItem(THEME_KEY)||'system')==='system')applyTheme('system',true);});
 init();

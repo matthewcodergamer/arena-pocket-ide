@@ -15,6 +15,10 @@ const PROVIDERS = {
     label: 'OpenRouter', secret: 'OPENROUTER_API_KEY', kind: 'openai',
     base: 'https://openrouter.ai/api/v1', capabilities: ['text','code','tools','router']
   },
+  bazaarlink: {
+    label: 'BazaarLink', secret: 'BAZAARLINK_API_KEY', kind: 'openai',
+    base: 'https://api.bazaarlink.ai/v1', capabilities: ['text','code','tools','router']
+  },
   mistral: {
     label: 'Mistral', secret: 'MISTRAL_API_KEY', kind: 'openai',
     base: 'https://api.mistral.ai/v1', capabilities: ['text','code','tools']
@@ -119,17 +123,18 @@ function isConfigured(id, env) {
 function providerBase(id, env) {
   const names = {
     groq: 'GROQ_API_BASE', openrouter: 'OPENROUTER_API_BASE', mistral: 'MISTRAL_API_BASE',
-    sambanova: 'SAMBANOVA_API_BASE', gemini: 'GEMINI_API_BASE'
+    sambanova: 'SAMBANOVA_API_BASE', bazaarlink: 'BAZAARLINK_API_BASE', gemini: 'GEMINI_API_BASE'
   };
   return String(env[names[id]] || PROVIDERS[id]?.base || '').replace(/\/$/, '');
 }
 function configuredDefaultModel(id, env) {
   const names = {
     groq: 'GROQ_MODEL', openrouter: 'OPENROUTER_MODEL', mistral: 'MISTRAL_MODEL',
-    sambanova: 'SAMBANOVA_MODEL', gemini: 'GEMINI_MODEL', cloudflare: 'CLOUDFLARE_MODEL'
+    sambanova: 'SAMBANOVA_MODEL', bazaarlink: 'BAZAARLINK_MODEL', gemini: 'GEMINI_MODEL', cloudflare: 'CLOUDFLARE_MODEL'
   };
   const defaults = {
     openrouter: 'openrouter/free',
+    bazaarlink: 'auto:free',
     cloudflare: '@cf/qwen/qwen2.5-coder-32b-instruct'
   };
   return String(env[names[id]] || defaults[id] || '').trim();
@@ -170,6 +175,7 @@ function modelScore(model) {
   if (model.provider === 'sambanova') score += 18;
   if (model.provider === 'mistral') score += 14;
   if (model.provider === 'gemini') score += 12;
+  if (model.provider === 'bazaarlink') score += 28;
   if (model.provider === 'openrouter') score += 8;
   return score;
 }
@@ -182,6 +188,7 @@ function normalizeModel(provider, raw) {
     const prompt = Number(pricing.prompt ?? NaN), completion = Number(pricing.completion ?? NaN);
     free = id.endsWith(':free') || id === 'openrouter/free' || (Number.isFinite(prompt) && Number.isFinite(completion) && prompt === 0 && completion === 0);
   }
+  if (provider === 'bazaarlink') free = id === 'auto:free' || id.endsWith(':free');
   return {
     id, provider, name: raw?.name || id,
     context: raw?.context_length || raw?.context || raw?.max_context_length || null,
@@ -214,6 +221,7 @@ async function listModels(provider, env, force = false) {
       const rows = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []);
       models = rows.map(row => normalizeModel(provider, row)).filter(Boolean);
       if (provider === 'openrouter' && !models.some(m => m.id === 'openrouter/free')) models.unshift({ id: 'openrouter/free', provider, name: 'OpenRouter Free Router', free: true, context: null });
+      if (provider === 'bazaarlink' && !models.some(m => m.id === 'auto:free')) models.unshift({ id: 'auto:free', provider, name: 'BazaarLink Auto Free', free: true, context: null });
     } else if (provider === 'gemini') {
       const { response, data } = await fetchJsonWithTimeout(`${providerBase(provider, env)}/models`, { headers: { 'x-goog-api-key': env.GEMINI_API_KEY } });
       if (!response.ok) throw Object.assign(new Error(data?.error?.message || `HTTP ${response.status}`), { status: response.status });
@@ -224,14 +232,14 @@ async function listModels(provider, env, force = false) {
       models = [{ id: configuredDefaultModel('cloudflare', env), provider: 'cloudflare', name: configuredDefaultModel('cloudflare', env), free: null }].filter(m => m.id);
     }
     const fallback = configuredDefaultModel(provider, env);
-    if (fallback && !models.some(m => m.id === fallback)) models.unshift({ id: fallback, provider, name: fallback, free: provider === 'openrouter' && fallback === 'openrouter/free' });
+    if (fallback && !models.some(m => m.id === fallback)) models.unshift({ id: fallback, provider, name: fallback, free: (provider === 'openrouter' && fallback === 'openrouter/free') || (provider === 'bazaarlink' && fallback === 'auto:free') });
     modelCache.set(provider, { at: Date.now(), models });
     {const prev=providerHealth.get(provider)||{};providerHealth.set(provider, { ...prev, catalogOk:true, at:Date.now(), modelCount:models.length, ok:prev.cooldownUntil>Date.now()?false:true });}
     return models;
   } catch (err) {
     {const kind=classifyFailure(Number(err?.status||0),err?.message);providerHealth.set(provider,{ok:false,catalogOk:false,at:Date.now(),error:safeError(err),kind,cooldownUntil:Date.now()+cooldownMs(kind)});}
     const fallback = configuredDefaultModel(provider, env);
-    return fallback ? [{ id: fallback, provider, name: fallback, free: provider === 'openrouter' && fallback === 'openrouter/free' }] : [];
+    return fallback ? [{ id: fallback, provider, name: fallback, free: (provider === 'openrouter' && fallback === 'openrouter/free') || (provider === 'bazaarlink' && fallback === 'auto:free') }] : [];
   }
 }
 async function providerSnapshot(env, probe = false) {
@@ -274,6 +282,12 @@ async function callOpenAICompatible(provider, model, body, env, signal) {
   if (provider === 'openrouter') {
     headers['X-Title'] = 'X Coder';
     headers['HTTP-Referer'] = env.ALLOWED_ORIGIN || 'https://matthewcodergamer.github.io';
+  }
+  if (provider === 'bazaarlink') {
+    headers['X-Title'] = 'X Coder';
+    headers['HTTP-Referer'] = env.ALLOWED_ORIGIN || 'https://matthewcodergamer.github.io';
+    // BazaarLink documents this header to prevent a free-route request from falling through to paid balance.
+    if (String(env.FREE_ONLY || 'true').toLowerCase() !== 'false') headers['X-Free-Fallback'] = 'false';
   }
   const response = await fetch(`${providerBase(provider, env)}/chat/completions`, { method: 'POST', headers, body: JSON.stringify(payload), signal });
   const raw = await response.text();
@@ -329,8 +343,9 @@ async function autoCandidates(env) {
   const filtered = models.filter(m => {
     const health=providerHealth.get(m.provider);if(health?.cooldownUntil>Date.now())return false;
     if (m.provider === 'gemini') return m.id === configuredDefaultModel('gemini', env);
-    if (m.provider !== 'openrouter') return true;
-    return !freePreferred || m.free === true || m.id === 'openrouter/free';
+    if (m.provider === 'openrouter') return !freePreferred || m.free === true || m.id === 'openrouter/free';
+    if (m.provider === 'bazaarlink') return !freePreferred || m.free === true || m.id === 'auto:free';
+    return true;
   });
   const sorted = filtered.sort((a,b) => modelScore(b) - modelScore(a));
   const picked = [];
@@ -338,9 +353,10 @@ async function autoCandidates(env) {
   for (const m of sorted) {
     if (seenProviders.has(m.provider)) continue;
     picked.push(m); seenProviders.add(m.provider);
-    if (picked.length >= 6) break;
+    if (picked.length >= 7) break;
   }
-  // Ensure OpenRouter's free router is available as a broad final text fallback when configured.
+  // Keep provider-level free routers available as broad fallbacks when configured.
+  if (isConfigured('bazaarlink', env) && !picked.some(x => x.provider === 'bazaarlink')) picked.push({ provider: 'bazaarlink', id: 'auto:free', name: 'BazaarLink Auto Free', free: true });
   if (isConfigured('openrouter', env) && !picked.some(x => x.provider === 'openrouter')) picked.push({ provider: 'openrouter', id: 'openrouter/free', name: 'OpenRouter Free Router', free: true });
   return picked;
 }
@@ -362,7 +378,7 @@ async function routeRequest(body, env, signal) {
   }
   if (!candidates.length) throw Object.assign(new Error('No configured text AI providers are available.'), { status: 503 });
 
-  const maxAttempts = Math.min(Math.max(Number(env.MAX_ROUTE_ATTEMPTS || 6), 1), 10);
+  const maxAttempts = Math.min(Math.max(Number(env.MAX_ROUTE_ATTEMPTS || 8), 1), 10);
   const attempts = [];
   for (const c of candidates.slice(0, maxAttempts)) {
     let providerTry = 0;

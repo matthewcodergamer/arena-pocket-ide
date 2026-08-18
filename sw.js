@@ -1,4 +1,4 @@
-const VERSION = 'xcoder-v3.0.0';
+const VERSION = 'xcoder-v4.0.0';
 const APP_CACHE = `${VERSION}-app`;
 const SHELL = [
   './', './index.html', './styles.css', './app.js', './manifest.webmanifest',

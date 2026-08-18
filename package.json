@@ -1,8 +1,8 @@
 {
   "name": "x-coder",
-  "version": "3.0.0",
+  "version": "4.0.0",
   "private": true,
-  "description": "X Coder mobile-first browser IDE with a multi-provider AI router",
+  "description": "X Coder mobile-first browser IDE with a Apple-simple mobile-first browser IDE with a multi-provider AI router",
   "scripts": {
     "serve": "npx serve -l 8080 .",
     "check": "node --check app.js && node --check worker/src/index.js"

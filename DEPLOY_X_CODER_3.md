@@ -69,3 +69,13 @@ Auto Router:
 6. Can hand the same task to Puter if all Worker-backed routes fail and Puter is signed in.
 
 X Coder also stores recent AI conversation context per project, tracks reported token usage when providers return it, and preserves reviewed file changes through Undo/Redo checkpoints.
+
+## X Coder 4.0 additional AI secret
+
+For BazaarLink support, add this encrypted Worker secret before redeploying:
+
+```bash
+npx wrangler secret put BAZAARLINK_API_KEY
+```
+
+Then redeploy the existing `arena-pocket-ide-proxy` Worker. The service name is intentionally unchanged so the existing Worker URL can remain valid.

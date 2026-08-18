@@ -12,12 +12,14 @@ GROQ_API_BASE = "https://api.groq.com/openai/v1"
 OPENROUTER_API_BASE = "https://openrouter.ai/api/v1"
 MISTRAL_API_BASE = "https://api.mistral.ai/v1"
 SAMBANOVA_API_BASE = "https://api.sambanova.ai/v1"
+BAZAARLINK_API_BASE = "https://api.bazaarlink.ai/v1"
 
 # Existing Gemini setting remains supported; the router can fail over to other providers.
 GEMINI_MODEL = "gemini-3.7-flash"
 CLOUDFLARE_MODEL = "@cf/qwen/qwen2.5-coder-32b-instruct"
+BAZAARLINK_MODEL = "auto:free"
 FREE_ONLY = "true"
-MAX_ROUTE_ATTEMPTS = "6"
+MAX_ROUTE_ATTEMPTS = "8"
 REQUESTS_PER_MINUTE = "20"
 REQUEST_TIMEOUT_MS = "90000"
 
