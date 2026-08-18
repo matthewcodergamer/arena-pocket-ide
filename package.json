@@ -1,6 +1,6 @@
 {
   "name": "x-coder",
-  "version": "4.4.0",
+  "version": "4.8.0",
   "private": true,
   "description": "X Coder \u2014 professional mobile-first browser IDE with PWA, local projects, preview, GitHub sync, and resilient multi-provider AI routing",
   "scripts": {

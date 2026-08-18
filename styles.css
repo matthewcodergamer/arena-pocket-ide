@@ -755,3 +755,55 @@ button{font-weight:500}
 @media(prefers-reduced-motion:reduce){
   .workspace-view:not(.hidden),.app-drawer:not(.hidden),.modal-dialog[open] .modal-card{animation:none!important}
 }
+
+
+/* X Coder 4.5 — GitHub SF Symbols + compact VS Code-size language badges */
+.sf-symbol>img{image-rendering:auto;-webkit-user-select:none;user-select:none}
+/* System controls: compact, closer to iOS/SF Symbol optical sizing. */
+.icon-btn>.sf-symbol,.nav-icon>.sf-symbol,.rail-item>.sf-symbol,[data-icon]>.sf-symbol{width:21px;height:21px}
+.icon-btn.compact>.sf-symbol{width:17px;height:17px}
+.network-indicator .sf-symbol{width:16px;height:16px}
+.drawer-list .sf-symbol{width:19px;height:19px}
+/* File/language logos should be small accents, like VS Code's file icon column. */
+.language-file-icon,.header-language-file-icon{display:block;width:16px;height:16px;max-width:16px;max-height:16px;object-fit:contain;flex:0 0 16px}
+.file-icon-backplate{width:24px!important;height:24px!important;flex-basis:24px!important;background:transparent!important;border:0!important;box-shadow:none!important}
+.file-icon-backplate .language-file-icon{width:16px;height:16px}
+.tab-row .language-file-icon{width:16px;height:16px}
+.header-language-icon{width:18px;height:18px;flex-basis:18px}
+.header-language-icon .header-language-file-icon{width:16px;height:16px}
+@media(min-width:900px){.desktop-rail .rail-item>.sf-symbol{width:21px;height:21px}.tree-row{column-gap:6px}}
+
+
+/* X Coder 4.6 — project manager, cloud account, unified console, AI review */
+.projects-view{background:var(--ios-bg);overflow:hidden;padding-bottom:calc(var(--nav-h) + var(--safe-bottom))}
+.projects-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 14px 10px;border-bottom:1px solid var(--ios-separator-soft)}
+.projects-toolbar>div{display:flex;min-width:0;flex-direction:column;gap:2px}.projects-toolbar strong{font-size:22px;letter-spacing:-.02em}.projects-toolbar span{font-size:11px;color:var(--ios-label-3)}
+.project-quick-actions{display:flex;gap:8px;padding:10px 14px}.project-quick-actions button{flex:1}
+.projects-list{padding:2px 14px 18px;max-height:46%;}
+.project-card{display:flex;align-items:center;gap:11px;min-height:58px;padding:8px 3px;border-bottom:1px solid var(--ios-separator-soft);transition:background .16s ease,transform .16s ease}.project-card:active{transform:scale(.99)}.project-card.current{background:color-mix(in srgb,var(--ios-accent) 5%,transparent)}
+.project-icon{width:30px;height:30px;display:grid;place-items:center;color:var(--ios-accent)}.project-icon svg,.project-icon img{width:22px;height:22px}.project-copy{display:flex;flex:1;min-width:0;flex-direction:column;gap:2px}.project-copy strong{font-size:14px}.project-copy span{font-size:10.5px;color:var(--ios-label-3)}.project-actions{display:flex;gap:2px}
+.cloud-projects-section{margin:8px 14px 90px;padding:14px;border-radius:14px;background:var(--ios-surface)}.cloud-title{display:flex;align-items:center;justify-content:space-between}.cloud-title strong{font-size:15px}.cloud-title span{font-size:11px;color:var(--ios-label-3)}.cloud-projects-section p{font-size:11.5px;line-height:1.45;color:var(--ios-label-3);margin:7px 0 12px}.cloud-project-list{margin-top:12px;border-top:1px solid var(--ios-separator-soft)}.cloud-project-row{width:100%;height:44px;display:flex;align-items:center;justify-content:space-between;border:0;border-bottom:1px solid var(--ios-separator-soft);background:transparent;color:var(--ios-label);text-align:left}.cloud-project-row small,.cloud-empty{font-size:10.5px;color:var(--ios-label-3)}.cloud-empty{padding:12px 0}
+.unified-console-panel{position:fixed;z-index:160;left:0;right:0;bottom:0;height:min(52dvh,520px);display:flex;flex-direction:column;background:color-mix(in srgb,var(--ios-surface) 96%,transparent);border-top:1px solid var(--ios-separator);box-shadow:0 -18px 60px rgba(0,0,0,.38);-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);transform:translateY(0);animation:consoleIn .22s var(--xc-ease)}.unified-console-panel.hidden{display:none}@keyframes consoleIn{from{transform:translateY(18px);opacity:.3}to{transform:none;opacity:1}}
+.unified-console-header{height:46px;display:flex;align-items:center;gap:8px;padding:0 10px 0 14px;border-bottom:1px solid var(--ios-separator-soft)}.console-title{display:flex;flex:1;min-width:0;flex-direction:column}.console-title strong{font-size:13px}.console-title span{font-size:9.5px;color:var(--ios-label-3)}.unified-console-header select{height:30px;max-width:94px;border:0;border-radius:8px;padding:0 8px;background:var(--ios-fill-2);color:var(--ios-label)}
+.unified-console-list{flex:1;background:#0b0b0c;font:11px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace}.unified-console-row{display:grid;grid-template-columns:68px 58px minmax(0,1fr);gap:8px;padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.05);color:#d8d8dc}.unified-console-row.error{background:rgba(255,69,58,.075)}.unified-console-row.warn{background:rgba(255,159,10,.065)}.console-time,.console-source{color:#72727b}.unified-console-row.error .console-source{color:#ff6961}.unified-console-row.warn .console-source{color:#ffb340}.console-message{white-space:pre-wrap;word-break:break-word}.console-message pre{margin:5px 0 0;white-space:pre-wrap;color:#8e8e98}.console-empty{padding:18px;color:#777}
+.ai-proposal-panel:not(.hidden){position:absolute!important;z-index:42;inset:37px 0 0!important;display:flex!important;flex-direction:column!important;max-height:none!important;overflow:auto!important;background:var(--ios-bg)!important;padding:0 0 calc(18px + var(--safe-bottom))!important}.proposal-header{position:sticky!important;top:0;z-index:2;display:flex!important;align-items:center!important;gap:8px!important;min-height:54px;padding:8px 12px!important;background:color-mix(in srgb,var(--ios-bg) 94%,transparent)!important;border-bottom:1px solid var(--ios-separator)!important;-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}.proposal-title{flex:1;min-width:0;font-size:14px!important}.proposal-actions{display:flex!important;flex:0 0 auto!important;gap:6px!important}.proposal-actions button{height:34px!important;padding:0 11px!important}.proposal-card{margin:10px 12px!important;border:1px solid var(--ios-separator-soft)!important;border-radius:12px!important;overflow:hidden!important;background:var(--ios-surface)!important}.proposal-card-head{position:sticky;top:54px;z-index:1;background:var(--ios-surface);padding:10px!important}.proposal-diff{max-height:none!important;overflow:visible!important;margin:0!important;padding:10px 12px 18px!important;font-size:10.5px!important;line-height:1.45!important;white-space:pre!important;min-width:max-content}.proposal-card{overflow-x:auto!important}
+@media (min-width:900px){.unified-console-panel{left:var(--rail-w);right:0;height:330px}.projects-list{max-height:none}.projects-view{padding-bottom:0}.cloud-projects-section{margin-bottom:24px}.ai-proposal-panel:not(.hidden){inset:0!important}.proposal-card-head{top:54px}}
+
+
+/* X Coder 4.7 — conversational AI polish + mobile visibility */
+.ai-thinking{display:flex;align-items:center;gap:9px;max-width:min(86vw,520px);padding:7px 10px;border-radius:12px;background:color-mix(in srgb,var(--ios-surface) 88%,transparent);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);box-shadow:0 5px 24px rgba(0,0,0,.16);pointer-events:none}
+.ai-thinking.hidden{display:none!important}.ai-thinking-copy{display:flex;min-width:0;flex-direction:column;gap:1px}.ai-thinking-copy strong{font-size:11.5px;color:var(--ios-label-2);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ai-thinking-copy small{font-size:9.5px;color:var(--ios-label-3);line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70vw}
+.ai-composer textarea::placeholder{color:var(--ios-label-3);opacity:1}.ai-composer textarea{min-height:38px;max-height:120px;padding:10px 42px 10px 12px;font-size:14px;line-height:18px}
+.ai-context-row{gap:6px}.context-chip{font-size:11px;padding:0 9px;min-width:max-content}.context-chip:disabled{opacity:.38}.context-chip[title]{-webkit-tap-highlight-color:transparent}
+.ai-message .ai-bubble{overflow-wrap:anywhere;word-break:break-word}.ai-message .ai-bubble pre{max-width:100%;overflow:auto;-webkit-overflow-scrolling:touch}.ai-message .ai-bubble code{overflow-wrap:anywhere}
+.ai-proposal-panel:not(.hidden){overscroll-behavior:contain}.proposal-header{flex-wrap:nowrap!important}.proposal-actions{max-width:52vw}.proposal-actions button{font-size:11px!important;white-space:nowrap}.proposal-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.proposal-path{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.proposal-card-head{display:grid!important;grid-template-columns:auto minmax(0,1fr) auto!important;align-items:center!important;gap:7px!important}.proposal-kind{font-size:9px!important;white-space:nowrap}.proposal-diff{max-width:none!important}
+@media(max-width:430px){.ai-messages{padding:14px 12px 18px}.ai-message{margin-bottom:15px}.ai-message.user .ai-bubble{max-width:88%;font-size:13.5px}.ai-message.assistant .ai-bubble{font-size:13.5px;line-height:1.48}.ai-welcome{padding:32px 18px 86px}.ai-welcome h2{font-size:20px}.ai-welcome p{font-size:12.5px;line-height:1.45;max-width:300px}.ai-composer-wrap{padding-left:8px;padding-right:8px}.ai-context-row{padding-left:2px;padding-right:2px}.proposal-actions{max-width:58vw}.proposal-actions button{height:32px!important;padding:0 9px!important}.proposal-card{margin:8px!important}.proposal-card-head{top:52px!important;padding:8px!important}.proposal-diff{padding:9px 10px 16px!important;font-size:10px!important}.ai-thinking{left:10px;right:10px;bottom:86px;max-width:none}.ai-thinking-copy small{max-width:calc(100vw - 110px)}}
+@media(max-width:360px){.context-chip{font-size:10px;padding:0 7px}.proposal-actions button{font-size:10px!important;padding:0 7px!important}.ai-model-select{max-width:42%}}
+
+/* v4.8 verified AI activity / reasoning summaries */
+.ai-activity{display:flex;align-items:flex-start;gap:8px;margin:4px 2px 11px;padding:0 4px;color:var(--ios-label-3,#8e8e93)}
+.ai-activity-dot{width:6px;height:6px;margin-top:6px;border-radius:999px;background:var(--ios-blue,#0a84ff);box-shadow:0 0 0 3px color-mix(in srgb,var(--ios-blue,#0a84ff) 12%,transparent);flex:0 0 auto}
+.ai-activity-copy{display:flex;flex-direction:column;gap:2px;min-width:0}
+.ai-activity-copy strong{font-size:11.5px;line-height:1.3;color:var(--ios-label-2,#c7c7cc);font-weight:600}
+.ai-activity-copy small{font-size:10.5px;line-height:1.35;color:var(--ios-label-3,#8e8e93);white-space:normal;overflow-wrap:anywhere}
+@media(max-width:430px){.ai-activity{margin-left:0;margin-right:0}.ai-activity-copy strong{font-size:11px}.ai-activity-copy small{font-size:10px}}

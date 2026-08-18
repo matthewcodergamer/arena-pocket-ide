@@ -128,7 +128,7 @@
         <div id="aiMessages" class="ai-messages scroll-region"></div>
         <div id="aiThinking" class="ai-thinking hidden" aria-live="polite">
           <span class="thinking-orb"><i></i><i></i><i></i></span>
-          <span id="aiThinkingText">Thinking</span>
+          <span class="ai-thinking-copy"><strong id="aiThinkingText">Working</strong><small id="aiThinkingDetail">Getting ready…</small></span>
         </div>
         <div id="aiProposalPanel" class="ai-proposal-panel hidden"></div>
         <div class="ai-composer-wrap">
@@ -136,11 +136,11 @@
             <button id="aiCurrentFileToggle" class="context-chip active">Current File</button>
             <button id="aiProjectToggle" class="context-chip active">Project</button>
             <button id="aiConsoleToggle" class="context-chip">Console</button>
-            <button id="aiUndoBtn" class="context-chip" disabled>Undo AI Changes</button>
-            <button id="aiRedoBtn" class="context-chip" disabled>Redo</button>
+            <button id="aiUndoBtn" class="context-chip" disabled title="Restore the files from before the last AI edit">Undo</button>
+            <button id="aiRedoBtn" class="context-chip" disabled title="Reapply the AI edit you just undid">Redo</button>
           </div>
           <div class="ai-composer">
-            <textarea id="aiInput" rows="1" placeholder="Ask X Coder to inspect or change your project…" enterkeyhint="send"></textarea>
+            <textarea id="aiInput" rows="1" placeholder="Message X Coder" enterkeyhint="send"></textarea>
             <button id="aiStopBtn" class="icon-btn hidden" aria-label="Stop agent" data-icon="stop"></button>
             <button id="aiSendBtn" class="send-btn" aria-label="Send to X Coder AI" data-icon="send"></button>
           </div>
@@ -181,6 +181,25 @@
         </div>
       </section>
 
+
+      <section id="projectsView" class="workspace-view projects-view hidden" aria-label="Projects">
+        <div class="projects-toolbar">
+          <div><strong>Projects</strong><span>Keep each app separate. Switch without mixing files.</span></div>
+          <button id="projectsNewBtn" class="primary-btn">New Project</button>
+        </div>
+        <div class="project-quick-actions">
+          <button id="projectsImportBtn" class="secondary-btn">Import Files</button>
+          <button id="projectsImportZipBtn" class="secondary-btn">Import ZIP</button>
+        </div>
+        <div id="projectsList" class="projects-list scroll-region"></div>
+        <section class="cloud-projects-section">
+          <div class="cloud-title"><strong>X Coder Cloud</strong><span id="xcoderCloudStatus">Not signed in</span></div>
+          <p id="xcoderCloudAccount">Sign in to sync projects across iPhone, Android, and desktop browsers. Powered by Puter.</p>
+          <div class="button-row wrap"><button id="xcoderCloudSignInBtn" class="secondary-btn">Create account / Sign in</button><button id="xcoderCloudSyncBtn" class="primary-btn" disabled>Sync Current Project</button></div>
+          <div id="cloudProjectsList" class="cloud-project-list"></div>
+        </section>
+      </section>
+
       <section id="tabsView" class="workspace-view tabs-view hidden" aria-label="Open tabs">
         <div id="tabsList" class="tabs-list scroll-region"></div>
       </section>
@@ -217,10 +236,10 @@
                 <details class="settings-details"><summary>Usage details</summary><pre id="aiUsageSummary" class="ai-usage-summary">No AI usage recorded for this project yet.</pre></details>
               </div>
               <div class="settings-row settings-row-stack">
-                <div class="settings-row-copy row-between"><strong>Puter AI fallback</strong><span id="puterStatus" class="status-label">Checking…</span></div>
-                <span class="row-description">Optional browser fallback if your Worker routes are temporarily unavailable.</span>
+                <div class="settings-row-copy row-between"><strong>X Coder Cloud + Puter AI</strong><span id="puterStatus" class="status-label">Checking…</span></div>
+                <span class="row-description">One Puter account powers X Coder cloud sync and the optional browser AI fallback. Authentication is provided by Puter and may offer Google, Apple, Microsoft, or email depending on Puter's current sign-in screen.</span>
                 <div class="button-row wrap">
-                  <button id="puterSignInBtn" class="secondary-btn">Sign in to Puter</button>
+                  <button id="puterSignInBtn" class="secondary-btn">Create account / Sign in</button>
                   <button id="puterRefreshBtn" class="secondary-btn">Refresh Models</button>
                 </div>
                 <details class="settings-details"><summary>Puter usage</summary><pre id="puterUsageText" class="puter-usage">Usage unavailable</pre></details>
@@ -257,6 +276,7 @@
                   <button id="importZipBtn" class="secondary-btn">Import ZIP</button>
                   <button id="exportZipBtn" class="secondary-btn">Export ZIP</button>
                   <button id="newProjectBtn" class="secondary-btn">New Project</button>
+                  <button id="openProjectsBtn" class="secondary-btn">Manage Projects</button>
                 </div>
               </div>
             </div>
@@ -281,6 +301,17 @@
 
       <nav id="mobileNav" class="mobile-nav" aria-label="Primary navigation"></nav>
     </main>
+
+
+    <section id="unifiedConsolePanel" class="unified-console-panel hidden" aria-label="X Coder Console">
+      <header class="unified-console-header">
+        <div class="console-title"><strong>Console</strong><span>Preview · IDE · AI · Cloud</span></div>
+        <select id="consoleLevelFilter" aria-label="Console level"><option value="all">All</option><option value="error">Errors</option><option value="warn">Warnings</option><option value="info">Info</option><option value="log">Logs</option></select>
+        <button id="unifiedConsoleClear" class="text-btn">Clear</button>
+        <button id="unifiedConsoleClose" class="icon-btn compact" aria-label="Close Console" data-icon="close"></button>
+      </header>
+      <div id="unifiedConsoleList" class="unified-console-list scroll-region"></div>
+    </section>
 
     <aside id="desktopUtility" class="desktop-utility panel-surface hidden" aria-label="Utility panel"></aside>
   </div>
