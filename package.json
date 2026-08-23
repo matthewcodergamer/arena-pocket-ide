@@ -1,8 +1,8 @@
 {
   "name": "x-coder",
-  "version": "4.8.0",
+  "version": "5.0.0",
   "private": true,
-  "description": "X Coder \u2014 professional mobile-first browser IDE with PWA, local projects, preview, GitHub sync, and resilient multi-provider AI routing",
+  "description": "X Coder — mobile-first browser IDE with multi-provider AI, model quick switching, natural speech, PWA, local/cloud projects, preview, and GitHub sync",
   "scripts": {
     "serve": "npx serve -l 8080 .",
     "check": "node --check app.js && node --check worker/src/index.js"
