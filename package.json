@@ -1,6 +1,6 @@
 {
   "name": "x-coder",
-  "version": "5.0.0",
+  "version": "5.1.0",
   "private": true,
   "description": "X Coder — mobile-first browser IDE with multi-provider AI, model quick switching, natural speech, PWA, local/cloud projects, preview, and GitHub sync",
   "scripts": {
