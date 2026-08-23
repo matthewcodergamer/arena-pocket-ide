@@ -1,7 +1,7 @@
 {
   "name": "X Coder",
   "short_name": "X Coder",
-  "description": "X Coder \u2014 a mobile-first browser IDE with local projects, live preview, GitHub sync, and a multi-provider AI router.",
+  "description": "X Coder — a mobile-first browser IDE with projects, live preview, GitHub sync, AI coding tools, and voice.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
@@ -9,8 +9,8 @@
     "fullscreen",
     "standalone"
   ],
-  "background_color": "#000000",
-  "theme_color": "#000000",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
   "orientation": "any",
   "icons": [
     {
