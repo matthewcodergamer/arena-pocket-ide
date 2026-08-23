@@ -1,9 +1,10 @@
-const VERSION = 'xcoder-v5.1.0';
+const VERSION = 'xcoder-v5.1.1';
 const APP_CACHE = `${VERSION}-app`;
 const SHELL = [
   './', './index.html', './styles.css', './app.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png', './icons/icon-source-1024.png',
-  './v5.css', './v5.js', './v51.css', './v51.js'
+  './icons/app-icon.svg', './icons/app-icon-512.svg', './icons/apple-touch-icon-v51.svg',
+  './v5.css', './v5.js', './v51.css', './v51.js', './v51-hotfix.css', './v51-hotfix.js'
 ];
 
 self.addEventListener('install', event => {
@@ -59,12 +60,12 @@ self.addEventListener('fetch', event => {
 
   // Keep the stable core while progressively layering the current presentation/runtime enhancements.
   if (url.pathname.endsWith('/app.js')) {
-    event.respondWith(layeredResponse(req, ['./v5.js', './v51.js'], 'text/javascript'));
+    event.respondWith(layeredResponse(req, ['./v5.js', './v51.js', './v51-hotfix.js'], 'text/javascript'));
     return;
   }
 
   if (url.pathname.endsWith('/styles.css')) {
-    event.respondWith(layeredResponse(req, ['./v5.css', './v51.css'], 'text/css'));
+    event.respondWith(layeredResponse(req, ['./v5.css', './v51.css', './v51-hotfix.css'], 'text/css'));
     return;
   }
 
