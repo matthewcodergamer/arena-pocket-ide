@@ -1,0 +1,11 @@
+/* X Coder 5.1 final polish — icon + iPhone presentation fixes */
+.boot-copy::before{background-image:url('./icons/app-icon.svg')!important;background-color:#141923!important}
+.drawer-app-icon{content:url('./icons/app-icon.svg')!important;background:#141923!important}
+.drawer-brand strong{letter-spacing:-.025em}.app-drawer{box-shadow:28px 0 80px rgba(0,0,0,.38)!important}
+.icon-btn .sf-symbol,.network-indicator .sf-symbol,.mobile-nav .sf-symbol{filter:none!important}
+.mobile-nav button.active{color:var(--xc-blue-2,#58a6ff)!important}
+.mobile-nav button:not(.active){color:var(--xc-text-3,#7d7d86)!important}
+.ai-quick-model-picker{max-height:min(430px,62dvh)!important;overflow:auto!important;overscroll-behavior:contain!important}
+.ai-quick-model-picker .quick-model-item{touch-action:none!important}
+@supports(height:100dvh){.app-shell{height:100dvh!important}.main-stage{height:100dvh!important}}
+@media(max-width:430px){.app-drawer{width:min(84vw,342px)!important}.drawer-header{padding-left:14px!important;padding-right:14px!important}.drawer-list button{min-height:48px!important}.browser-toolbar{padding-left:6px!important;padding-right:6px!important}.pane-header,.mobile-header{min-height:54px!important}.ai-composer-wrap{padding-left:8px!important;padding-right:8px!important}}
