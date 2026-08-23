@@ -61,7 +61,7 @@ const SF_SYMBOLS = {
   code:'chevron.left.slash.chevron.right', globe:'globe', terminal:'greaterthan.square',
   git:'arrow.branch', tabs:'square.grid.2x2', spark:'sparkles',
   refresh:'arrow.clockwise', maximize:'arrow.up.left.and.arrow.down.right', console:'greaterthan.square',
-  send:'paperplane.fill', stop:'stop.fill', settings:'gear', projects:'folder.fill.badge.plus',
+  send:'paperplane.fill', stop:'stop.fill', settings:'gear', projects:'folder.fill.badge.plus', extensions:'square.grid.2x2',
   info:'info.circle', chevron:'chevron.right', chevronDown:'chevron.down', trash:'trash',
   edit:'pencil', download:'square.and.arrow.down', upload:'square.and.arrow.up', play:'play.fill',
   save:'square.and.arrow.down', list:'list.bullet', external:'arrow.up.right.square',
@@ -321,9 +321,9 @@ function buildNav(){
   $('#desktopRail').innerHTML=[...NAV,['settings','settings','Settings']].map(([id,icon,label])=>`<button class="rail-item ${state.view===id?'active':''}" data-view-target="${id}" title="${label}" aria-label="${label}">${svgIcon(icon)}</button>`).join('');
 }
 function setView(view){
-  const valid=['editor','browser','terminal','ai','git','tabs','projects','settings']; if(!valid.includes(view))view='editor'; state.view=view; document.querySelector('#app').dataset.view=view;
+  const valid=['editor','browser','terminal','ai','git','tabs','projects','extensions','settings']; if(!valid.includes(view))view='editor'; state.view=view; document.querySelector('#app').dataset.view=view;
   const desktop=matchMedia('(min-width:900px)').matches;
-  const utilityViews=new Set(['ai','git','tabs','projects','settings']);
+  const utilityViews=new Set(['ai','git','tabs','projects','extensions','settings']);
   $$('.workspace-view').forEach(v=>v.classList.add('hidden'));
   if(desktop && utilityViews.has(view)){
     // Keep editor in center, render chosen utility in right panel by moving node temporarily.
@@ -341,12 +341,13 @@ function setView(view){
   if(view==='git') refreshGitStatus();
   if(view==='tabs') renderTabs();
   if(view==='projects') renderProjectsView();
+  if(view==='extensions') renderExtensions();
   if(view==='settings') updateDiagnostics();
   if(view==='ai') checkArenaConnection(false,Date.now()-state.ai.catalog.loadedAt>300000);
 }
 
 function updateHeader(){
-  const titleMap={editor:state.activePath?posix.basename(state.activePath):'Editor',browser:'Browser',terminal:'Terminal',ai:'AI',git:'Git',tabs:'Tabs',projects:'Projects',settings:'Settings'};
+  const titleMap={editor:state.activePath?posix.basename(state.activePath):'Editor',browser:'Browser',terminal:'Terminal',ai:'AI',git:'Git',tabs:'Tabs',projects:'Projects',extensions:'Add-ons',settings:'Settings'};
   $('#mobileTitle').textContent=titleMap[state.view]||'IDE'; $('#mobileSubtitle').textContent=state.view==='editor'&&state.activePath?posix.dirname(state.activePath):''; const langIcon=$('#mobileLanguageIcon'); if(langIcon){const has=state.view==='editor'&&state.activePath&&languageIconUrl(state.activePath);langIcon.innerHTML=has?languageIconHtml(state.activePath,'header-language-file-icon'):'';langIcon.classList.toggle('hidden',!has);}
   const a=$('#mobileHeaderActions'); a.innerHTML='';
   if(['editor','ai','terminal'].includes(state.view)){const b=document.createElement('button');b.className='icon-btn';b.setAttribute('aria-label','Open Console');b.innerHTML=svgIcon('console');b.addEventListener('click',()=>setUnifiedConsole(true));a.append(b);}
@@ -414,11 +415,17 @@ function languageIconKey(path){
   return '';
 }
 function languageIconUrl(path){return deviconUrl(languageIconKey(path));}
+function languageBadgeSvg(key,cls='language-file-icon'){
+  const meta={html5:['5','#e34f26'],css3:['#','#1572b6'],javascript:['JS','#f7df1e'],typescript:['TS','#3178c6'],react:['⚛','#61dafb'],python:['Py','#3776ab'],java:['J','#e76f00'],git:['◆','#f05032'],nodejs:['N','#5fa04e'],threejs:['3','#ffffff'],json:['{}','#8e8e93'],markdown:['M','#8e8e93'],vitejs:['V','#646cff'],npm:['npm','#cb3837']};
+  const m=meta[key]||['•','#8e8e93'];
+  const fg=(key==='javascript'||key==='threejs')?'#111':'#fff';
+  return `<svg class="${cls} language-badge" viewBox="0 0 16 16" aria-hidden="true"><rect x="1" y="1" width="14" height="14" rx="2.5" fill="${m[1]}"/><text x="8" y="10.7" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,Arial" font-size="${m[0].length>2?4.6:6.3}" font-weight="800" fill="${fg}">${m[0]}</text></svg>`;
+}
 function languageIconHtml(path,cls='language-file-icon'){
-  const url=languageIconUrl(path);if(!url)return svgIcon(fileIconName(path));
-  // No lazy loading: Safari can postpone tiny off-screen/overflow images too aggressively.
-  // A fixed Devicon release URL also avoids Safari caching redirects from @latest.
-  return `<img class="${cls}" src="${url}" alt="" decoding="async" draggable="false" onerror="this.replaceWith(document.createRange().createContextualFragment(\`${fallbackSvgIcon(fileIconName(path))}\`))">`;
+  const key=languageIconKey(path),url=languageIconUrl(path);if(!key)return svgIcon(fileIconName(path));
+  const fallback=encodeURIComponent(languageBadgeSvg(key,cls));
+  if(!url)return decodeURIComponent(fallback);
+  return `<span class="language-icon-shell"><img class="${cls}" src="${url}" alt="" decoding="sync" fetchpriority="high" draggable="false" onerror="this.parentElement.innerHTML=decodeURIComponent('${fallback}')"></span>`;
 }
 
 function attachLongPress(el,cb){let t=null,sx=0,sy=0;el.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse')return;sx=e.clientX;sy=e.clientY;t=setTimeout(()=>cb(sx,sy),520);});const cancel=()=>{if(t)clearTimeout(t);t=null};el.addEventListener('pointerup',cancel);el.addEventListener('pointercancel',cancel);el.addEventListener('pointermove',e=>{if(Math.hypot(e.clientX-sx,e.clientY-sy)>8)cancel();});}
@@ -519,10 +526,27 @@ async function loadActiveEditor(){
   if(!state.activePath){if(state.editor){state.editor.destroy();state.editor=null;}$('#editorHost').innerHTML='';$('#editorEmpty').classList.remove('hidden');updateHeader();return;}
   $('#editorEmpty').classList.add('hidden');await ensureEditor();if(!state.cm)return;
   if(state.editor){state.editor.destroy();state.editor=null;}
-  const rec=state.fs.get(state.activePath);if(!rec)return;const text=await state.fs.readText(state.activePath);const c=state.cm;const updateListener=c.EditorView.updateListener.of(update=>{if(update.docChanged){const value=update.state.doc.toString();markDirty(state.activePath,value);}});
+  const rec=state.fs.get(state.activePath);if(!rec)return;const text=await state.fs.readText(state.activePath);const c=state.cm;const updateListener=c.EditorView.updateListener.of(update=>{if(update.docChanged){const value=update.state.doc.toString();markDirty(state.activePath,value);}if(update.docChanged||update.selectionSet)updateEditorStatus(update.view);});
   const wrap=state.editorSetting.wrap?c.EditorView.lineWrapping:[];
-  state.editor=new c.EditorView({state:c.EditorState.create({doc:text,extensions:[c.basicSetup,languageFor(state.activePath),editorTheme(),...([editorSyntaxTheme()].flat().filter(Boolean)),wrap,updateListener,c.EditorView.contentAttributes.of({autocapitalize:'off',autocomplete:'off',spellcheck:'false'})]}),parent:$('#editorHost')});
-  updateHeader();renderAccessory();setTimeout(()=>state.editor?.focus(),60);
+  state.editor=new c.EditorView({state:c.EditorState.create({doc:text,extensions:[c.basicSetup,languageFor(state.activePath),editorTheme(),...([editorSyntaxTheme()].flat().filter(Boolean)),wrap,updateListener,c.keymap.of([{key:'Tab',run:view=>trySimpleEmmet(view)}]),c.EditorView.contentAttributes.of({autocapitalize:'off',autocomplete:'off',spellcheck:'false'})]}),parent:$('#editorHost')});
+  updateHeader();renderAccessory();updateEditorStatus(state.editor);setTimeout(()=>state.editor?.focus(),60);
+}
+function editorLanguageLabel(path=''){
+  const key=languageIconKey(path);return ({html5:'HTML',css3:'CSS',javascript:'JavaScript',typescript:'TypeScript',react:'React JSX',python:'Python',java:'Java',git:'Git',nodejs:'Node.js',threejs:'Three.js',json:'JSON',markdown:'Markdown',vitejs:'Vite',npm:'npm'})[key]||'Plain Text';
+}
+function updateEditorStatus(view=state.editor){
+  if(!view)return;try{const pos=view.state.selection.main.head,line=view.state.doc.lineAt(pos),col=pos-line.from+1;$('#statusCursor').textContent=`Ln ${line.number}, Col ${col}`;$('#statusLines').textContent=`Lines ${view.state.doc.lines}`;$('#statusLanguage').textContent=editorLanguageLabel(state.activePath);$('#statusIndent').textContent='Spaces: 2';}catch{}
+}
+function renderExtensions(){
+  const ex=state.editorSetting.extensions||(state.editorSetting.extensions={emmet:true,autoCloseTags:true});
+  const a=$('#emmetToggle'),b=$('#autoCloseTagsToggle');if(a)a.checked=ex.emmet!==false;if(b)b.checked=ex.autoCloseTags!==false;
+}
+function trySimpleEmmet(view){
+  const ex=state.editorSetting.extensions||{};if(ex.emmet===false||!state.activePath||!['.html','.htm','.jsx','.tsx'].includes(posix.ext(state.activePath)))return false;
+  const sel=view.state.selection.main;if(!sel.empty)return false;const line=view.state.doc.lineAt(sel.head),before=line.text.slice(0,sel.head-line.from);const m=before.match(/([!#.][\w-]*|[a-z][\w-]*(?:>[a-z][\w-]*(?:\*\d+)?)?)$/i);if(!m)return false;const ab=m[1];let out='';
+  if(ab==='!')out='<!doctype html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <title>Document</title>\n</head>\n<body>\n  \n</body>\n</html>';
+  else if(ab.startsWith('.'))out=`<div class="${ab.slice(1)}"></div>`;else if(ab.startsWith('#'))out=`<div id="${ab.slice(1)}"></div>`;else {const mult=ab.match(/^([a-z][\w-]*)>([a-z][\w-]*)\*(\d+)$/i);if(mult){out=`<${mult[1]}>\n${Array.from({length:Math.min(+mult[3],20)},()=>`  <${mult[2]}></${mult[2]}>`).join('\n')}\n</${mult[1]}>`;}else if(/^[a-z][\w-]*$/i.test(ab))out=`<${ab}></${ab}>`;}
+  if(!out)return false;view.dispatch({changes:{from:sel.head-ab.length,to:sel.head,insert:out},selection:{anchor:sel.head-ab.length+out.length}});return true;
 }
 function markDirty(path,value){state.dirty.add(path);renderTabs();$('#saveStatus').textContent='Unsaved';clearTimeout(state.saveTimers.get(path));const t=setTimeout(async()=>{try{await state.fs.writeText(path,value);state.dirty.delete(path);$('#saveStatus').textContent='Saved';renderExplorer();renderTabs();saveProjectMeta();if(state.view==='browser')refreshPreview();}catch(e){$('#saveStatus').textContent='Save failed';toast(e.message,'error');}},450);state.saveTimers.set(path,t);}
 async function flushSave(path=state.activePath){if(!path||!state.dirty.has(path))return;clearTimeout(state.saveTimers.get(path));if(state.editor&&path===state.activePath){await state.fs.writeText(path,state.editor.state.doc.toString());state.dirty.delete(path);$('#saveStatus').textContent='Saved';renderExplorer();renderTabs();}}
@@ -1082,7 +1106,7 @@ async function syncCurrentProjectToCloud(){
 async function renderCloudProjects(){const host=$('#cloudProjectsList');if(!host)return;if(!puterSignedIn()){host.innerHTML='<div class="cloud-empty">Sign in to see cloud projects.</div>';return;}try{const pairs=await puter.kv.list({pattern:'xcoder:v1:project:*',returnValues:true});const items=Array.isArray(pairs)?pairs:[];host.innerHTML=items.length?items.map(x=>{const m=x.value||x;return `<button class="cloud-project-row" data-cloud-id="${escapeHtml(m.id||'')}"><span>${escapeHtml(m.name||'Project')}</span><small>${m.updatedAt?formatDate(m.updatedAt):''}</small></button>`;}).join(''):'<div class="cloud-empty">No cloud projects yet.</div>';$$('.cloud-project-row',host).forEach(b=>b.addEventListener('click',()=>restoreCloudProject(b.dataset.cloudId)));}catch(e){host.innerHTML=`<div class="cloud-empty">${escapeHtml(e.message)}</div>`;}}
 async function restoreCloudProject(id){if(!id||!puterSignedIn())return;try{const m=await puter.kv.get(`xcoder:v1:project:${id}`);if(!m)throw new Error('Cloud project was not found.');let projects=await idb('projects','readonly',s=>s.getAll())||[];let p=projects.find(x=>x.id===id);if(!p){p={id:m.id,name:m.name||'Cloud Project',createdAt:Date.now(),updatedAt:m.updatedAt||Date.now(),git:{repo:'',branch:'main',snapshot:{}}};await idb('projects','readwrite',s=>s.put(p));}const fs=new ProjectFS(p.id);await fs.load();await fs.clear();for(const path of m.files||[]){const data=await puter.kv.get(cloudFileKey(id,path));if(!data)continue;if(data.binary){const raw=atob(data.data||'');const bytes=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);await fs.writeBinary(path,new Blob([bytes],{type:data.mime||mimeFromPath(path)}),data.mime);}else await fs.writeText(path,data.content||'',data.mime||mimeFromPath(path));}p.name=m.name||p.name;p.updatedAt=Date.now();await idb('projects','readwrite',s=>s.put(p));await activateProject(p);setView('editor');toast('Cloud project restored','success');pushUnifiedConsole('info','Cloud',`Restored ${p.name}`);}catch(e){logAppError('Cloud',e);toast(e.message,'error');}}
 
-function diagnosticsObject(){return {product:'X Coder',ideVersion:'4.6.0',userAgent:navigator.userAgent,standalone:matchMedia('(display-mode: standalone)').matches||navigator.standalone===true,viewport:`${innerWidth}x${innerHeight}`,visualViewport:window.visualViewport?`${Math.round(visualViewport.width)}x${Math.round(visualViewport.height)}`:'unavailable',devicePixelRatio:devicePixelRatio,online:navigator.onLine,serviceWorker:'serviceWorker'in navigator,indexedDB:'indexedDB'in window,projectId:state.project?.id,fileCount:state.fs?.entries().filter(r=>r.type==='file').length||0,openTabs:state.openTabs.length,activeFile:state.activePath,previewLogs:state.console.length,aiRouterConfigured:!!arenaConfig().proxy,aiSelection:arenaConfig().selection,aiLastRoute:state.ai.lastRoute?routeLabel(state.ai.lastRoute):null,aiProviders:state.ai.catalog.providers.map(p=>({id:p.id,status:p.status,configured:p.configured})),puterSignedIn:puterSignedIn(),gitRepo:state.git.repo||null};}
+function diagnosticsObject(){return {product:'X Coder',ideVersion:'4.9.0',userAgent:navigator.userAgent,standalone:matchMedia('(display-mode: standalone)').matches||navigator.standalone===true,viewport:`${innerWidth}x${innerHeight}`,visualViewport:window.visualViewport?`${Math.round(visualViewport.width)}x${Math.round(visualViewport.height)}`:'unavailable',devicePixelRatio:devicePixelRatio,online:navigator.onLine,serviceWorker:'serviceWorker'in navigator,indexedDB:'indexedDB'in window,projectId:state.project?.id,fileCount:state.fs?.entries().filter(r=>r.type==='file').length||0,openTabs:state.openTabs.length,activeFile:state.activePath,previewLogs:state.console.length,aiRouterConfigured:!!arenaConfig().proxy,aiSelection:arenaConfig().selection,aiLastRoute:state.ai.lastRoute?routeLabel(state.ai.lastRoute):null,aiProviders:state.ai.catalog.providers.map(p=>({id:p.id,status:p.status,configured:p.configured})),puterSignedIn:puterSignedIn(),gitRepo:state.git.repo||null};}
 function updateDiagnostics(){$('#diagnosticsText').textContent=JSON.stringify(diagnosticsObject(),null,2);}
 
 function renderAll(){applyTheme(localStorage.getItem(THEME_KEY)||'system');updateConnectivity();buildNav();renderExplorer();renderTabs();renderAIMessages();renderProposal();updateHeader();$('#explorerProjectName').textContent=state.project?.name||'';$('#gitRepoInput').value=state.git.repo||'';$('#gitBranchInput').value=state.git.branch||'main';$('#arenaProxyInput').value=arenaConfig().proxy;renderProviderStatus();renderAIModelOptions();renderAIUsageSummary();$('#accessoryToggle').checked=state.editorSetting.accessory;$('#wordWrapToggle').checked=state.editorSetting.wrap;$('#fontSizeRange').value=state.editorSetting.fontSize;$('#syntaxThemeSelect').value=state.editorSetting.syntaxTheme||'vscode-dark';document.documentElement.style.setProperty('--editor-font-size',state.editorSetting.fontSize+'px');updateDiagnostics();}
@@ -1092,7 +1116,7 @@ function bindUI(){
   hydrateIcons();buildNav();
   document.addEventListener('click',e=>{const v=e.target.closest('[data-view-target]')?.dataset.viewTarget;if(v)setView(v);if(!e.target.closest('#contextMenu'))$('#contextMenu').classList.add('hidden');});
   $('#hamburgerBtn').addEventListener('click',openDrawer);$('#explorerMenuBtn').addEventListener('click',openDrawer);$('#drawerCloseBtn').addEventListener('click',closeDrawer);$('#drawerBackdrop').addEventListener('click',closeDrawer);
-  $$('#appDrawer [data-drawer-action]').forEach(b=>b.addEventListener('click',()=>{const a=b.dataset.drawerAction;closeDrawer();if(a==='explorer')openExplorer();else if(a==='settings')setView('settings');else if(a==='diagnostics'){setView('settings');setTimeout(()=>$('.diagnostics-card')?.scrollIntoView({behavior:'smooth'}),100);}else if(a==='projects')setView('projects');}));
+  $$('#appDrawer [data-drawer-action]').forEach(b=>b.addEventListener('click',()=>{const a=b.dataset.drawerAction;closeDrawer();if(a==='explorer')openExplorer();else if(a==='settings')setView('settings');else if(a==='diagnostics'){setView('settings');setTimeout(()=>$('.diagnostics-card')?.scrollIntoView({behavior:'smooth'}),100);}else if(a==='projects')setView('projects');else if(a==='extensions')setView('extensions');}));
   $('#newFileBtn').addEventListener('click',()=>promptNewFile());$('#emptyNewFileBtn').addEventListener('click',()=>promptNewFile());$('#newFolderBtn').addEventListener('click',()=>promptNewFolder());
   $('#explorerSearchBtn').addEventListener('click',()=>{$('#explorerSearchWrap').classList.toggle('hidden');if(!$('#explorerSearchWrap').classList.contains('hidden'))$('#explorerSearchInput').focus();});$('#explorerSearchClose').addEventListener('click',()=>{$('#explorerSearchWrap').classList.add('hidden');$('#explorerSearchInput').value='';renderExplorer();});$('#explorerSearchInput').addEventListener('input',renderExplorer);
   $('#explorerMoreBtn').addEventListener('click',e=>showExplorerMore(e.currentTarget.getBoundingClientRect()));$('#explorerFilterBtn')?.addEventListener('click',e=>showExplorerFilter(e.currentTarget.getBoundingClientRect()));$('#copyProjectPathBtn').addEventListener('click',()=>navigator.clipboard?.writeText(`${state.project.name}\n${state.fs.entries().filter(r=>r.type==='file').length} files`).then(()=>toast('Project info copied')));
@@ -1112,6 +1136,7 @@ function bindUI(){
   $('#unifiedConsoleClose')?.addEventListener('click',()=>setUnifiedConsole(false));$('#unifiedConsoleClear')?.addEventListener('click',()=>{state.unifiedConsole=[];renderUnifiedConsole();});$('#consoleLevelFilter')?.addEventListener('change',renderUnifiedConsole);
   $('#xcoderCloudSignInBtn')?.addEventListener('click',async()=>{try{await signInXCoderCloud();await renderCloudProjects();}catch(e){logAppError('Cloud',e);toast(e?.msg||e?.message||String(e),'error');}});$('#xcoderCloudSyncBtn')?.addEventListener('click',syncCurrentProjectToCloud);
   $('#syntaxThemeSelect').addEventListener('change',async e=>{state.editorSetting.syntaxTheme=e.target.value;await projectSettingsSet('editorSettings',state.editorSetting);await loadActiveEditor();toast(e.target.options[e.target.selectedIndex].text+' applied','success');});$('#accessoryToggle').addEventListener('change',e=>{state.editorSetting.accessory=e.target.checked;projectSettingsSet('editorSettings',state.editorSetting);renderAccessory();});$('#wordWrapToggle').addEventListener('change',async e=>{state.editorSetting.wrap=e.target.checked;projectSettingsSet('editorSettings',state.editorSetting);await loadActiveEditor();});$('#fontSizeRange').addEventListener('input',e=>{state.editorSetting.fontSize=+e.target.value;document.documentElement.style.setProperty('--editor-font-size',e.target.value+'px');projectSettingsSet('editorSettings',state.editorSetting);});
+  $('#emmetToggle')?.addEventListener('change',e=>{state.editorSetting.extensions={...(state.editorSetting.extensions||{}),emmet:e.target.checked};projectSettingsSet('editorSettings',state.editorSetting);toast(e.target.checked?'Emmet enabled':'Emmet disabled','success');});$('#autoCloseTagsToggle')?.addEventListener('change',e=>{state.editorSetting.extensions={...(state.editorSetting.extensions||{}),autoCloseTags:e.target.checked};projectSettingsSet('editorSettings',state.editorSetting);});
   $('#importFilesBtn').addEventListener('click',()=>$('#filePicker').click());$('#filePicker').addEventListener('change',e=>importFiles(e.target.files).finally(()=>e.target.value=''));$('#importZipBtn').addEventListener('click',()=>$('#zipPicker').click());$('#zipPicker').addEventListener('change',e=>{const f=e.target.files[0];if(f)importZip(f).catch(err=>toast(err.message,'error'));e.target.value='';});$('#exportZipBtn').addEventListener('click',exportZip);$('#newProjectBtn').addEventListener('click',createNewProject);$('#resetProjectBtn').addEventListener('click',resetProject);$('#copyDiagnosticsBtn').addEventListener('click',()=>navigator.clipboard?.writeText($('#diagnosticsText').textContent).then(()=>toast('Diagnostics copied')));
   $('#gitPullBtn').addEventListener('click',pullGitHub);$('#gitRefreshBtn').addEventListener('click',refreshGitStatus);$('#gitPushBtn').addEventListener('click',()=>pushGitHub().catch(e=>toast(e.message,'error')));
   window.addEventListener('message',e=>{if(e.data?.__arenaPreview)logPreview(e.data.level||'log',e.data.args||[],e.data.time);});
@@ -1119,6 +1144,7 @@ function bindUI(){
   window.addEventListener('online',()=>{updateConnectivity();toast('Back online','success');checkArenaConnection(false,true);});window.addEventListener('offline',()=>{updateConnectivity();setAIStatus('Offline · local editing is still available','error');});
   document.addEventListener('visibilitychange',()=>{if(document.hidden){flushSave();saveProjectMeta();}else if(Date.now()-state.ai.catalog.loadedAt>300000&&!state.ai.busy){checkArenaConnection(false,true);}});window.addEventListener('load',()=>{if(window.puter&&!state.ai.busy){checkArenaConnection(false,false);refreshCloudAccountUI();renderCloudProjects();}},{once:true});window.addEventListener('beforeunload',()=>{flushSave();saveProjectMeta();});
   window.addEventListener('resize',()=>{if(matchMedia('(min-width:900px)').matches)closeExplorer();setView(state.view);});
+  document.addEventListener('gesturestart',e=>e.preventDefault(),{passive:false});document.addEventListener('gesturechange',e=>e.preventDefault(),{passive:false});document.addEventListener('gestureend',e=>e.preventDefault(),{passive:false});
   setupVisualViewport();
 }
 function showExplorerFilter(rect){

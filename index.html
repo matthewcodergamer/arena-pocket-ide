@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,viewport-fit=cover" />
   <meta name="theme-color" content="#000000" />
   <meta name="color-scheme" content="dark light" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -22,9 +22,12 @@
   <noscript>This IDE requires JavaScript.</noscript>
 
   <div id="bootScreen" class="boot-screen" aria-live="polite">
-    <div class="boot-mark">X</div>
-    <div class="boot-copy"><strong>X Coder</strong><span>Preparing your workspace</span></div>
-    <div class="boot-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="boot-shell">
+      <div class="boot-top"><div class="boot-brand"><span class="boot-mark">X</span><strong>X Coder</strong></div><div class="boot-mini"></div></div>
+      <div class="boot-body"><div class="boot-rail"></div><div class="boot-main"><div class="boot-line w35"></div><div class="boot-line w70"></div><div class="boot-line w55"></div><div class="boot-code"></div><div class="boot-code short"></div></div></div>
+      <div class="boot-status"><span></span><span></span><span></span></div>
+    </div>
+    <div class="boot-copy"><strong>Opening X Coder</strong><span>Restoring your workspace…</span></div>
   </div>
 
   <div id="app" class="app-shell" data-view="editor">
@@ -33,8 +36,8 @@
     <aside id="explorerPanel" class="explorer-panel panel-surface" aria-label="Explorer">
       <header class="pane-header">
         <button class="icon-btn mobile-only" id="explorerMenuBtn" aria-label="Open project menu" data-icon="menu"></button>
-        <div class="pane-title-wrap">
-          <h1 class="pane-title">Explorer</h1>
+        <div class="pane-title-wrap explorer-title-wrap">
+          <span class="explorer-title-icon" data-icon="folder"></span><h1 class="pane-title">Explorer</h1>
           <span id="explorerProjectName" class="pane-subtitle"></span>
         </div>
         <div class="header-actions">
@@ -80,7 +83,7 @@
         </div>
         <div id="editorHost" class="editor-host"></div>
         <div id="editorAccessory" class="editor-accessory hidden" aria-label="Coding keyboard shortcuts"></div>
-        <div id="saveStatus" class="save-status" aria-live="polite">Saved</div>
+        <div id="saveStatus" class="save-status" aria-live="polite">Saved</div><div id="editorStatusBar" class="editor-status-bar"><span id="statusBranch">main</span><span id="statusProblems">✓ 0</span><span class="status-spacer"></span><span id="statusCursor">Ln 1, Col 1</span><span id="statusLines">Lines 1</span><span id="statusIndent">Spaces: 2</span><span>UTF-8</span><span>LF</span><span id="statusLanguage">Plain Text</span></div>
       </section>
 
       <section id="browserView" class="workspace-view browser-view hidden" aria-label="Browser preview">
@@ -299,6 +302,15 @@
         </div>
       </section>
 
+      <section id="extensionsView" class="workspace-view extensions-view hidden" aria-label="Add-ons">
+        <div class="extensions-shell scroll-region">
+          <div class="extensions-hero"><div><h2>Add-ons</h2><p>Small, browser-safe features that extend X Coder without making the editor heavy.</p></div><span data-icon="plus"></span></div>
+          <div class="extension-row"><div class="extension-icon emmet-mark">E</div><div class="extension-copy"><strong>Emmet</strong><span>Fast HTML abbreviation expansion. Built into VS Code; lightweight implementation for X Coder.</span></div><label class="switch"><input id="emmetToggle" type="checkbox"><i></i></label></div>
+          <div class="extension-row"><div class="extension-icon">&lt;/&gt;</div><div class="extension-copy"><strong>Auto-close tags</strong><span>Keeps HTML authoring fast on touch keyboards.</span></div><label class="switch"><input id="autoCloseTagsToggle" type="checkbox"><i></i></label></div>
+          <div class="extension-note">Add-on settings are stored per project. This is a lightweight extension layer, not a fake VS Code Marketplace.</div>
+        </div>
+      </section>
+
       <nav id="mobileNav" class="mobile-nav" aria-label="Primary navigation"></nav>
     </main>
 
@@ -328,6 +340,7 @@
     <div class="drawer-list">
       <button data-drawer-action="explorer"><span data-icon="folder"></span>Explorer</button>
       <button data-drawer-action="projects"><span data-icon="projects"></span>Projects</button>
+      <button data-drawer-action="extensions"><span data-icon="plus"></span>Add-ons</button>
       <button data-drawer-action="settings"><span data-icon="settings"></span>Settings</button>
       <button data-drawer-action="diagnostics"><span data-icon="info"></span>Diagnostics</button>
     </div>
