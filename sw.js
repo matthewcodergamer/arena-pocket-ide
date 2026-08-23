@@ -1,9 +1,9 @@
-const VERSION = 'xcoder-v5.0.0';
+const VERSION = 'xcoder-v5.1.0';
 const APP_CACHE = `${VERSION}-app`;
 const SHELL = [
   './', './index.html', './styles.css', './app.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png', './icons/icon-source-1024.png',
-  './v5.css', './v5.js'
+  './v5.css', './v5.js', './v51.css', './v51.js'
 ];
 
 self.addEventListener('install', event => {
@@ -12,7 +12,9 @@ self.addEventListener('install', event => {
 
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
-    for (const key of await caches.keys()) if ((key.startsWith('arena-pocket-ide-') || key.startsWith('xcoder-')) && key !== APP_CACHE) await caches.delete(key);
+    for (const key of await caches.keys()) {
+      if ((key.startsWith('arena-pocket-ide-') || key.startsWith('xcoder-')) && key !== APP_CACHE) await caches.delete(key);
+    }
     await self.clients.claim();
   })());
 });
@@ -25,6 +27,20 @@ async function networkOrCache(req){
   } catch {
     return (await caches.match(req)) || null;
   }
+}
+
+async function layeredResponse(req, extras, type){
+  const base = await networkOrCache(req);
+  if (!base) return new Response('Offline', {status:503, headers:{'content-type':type}});
+  let text = await base.text();
+  for (const path of extras) {
+    const extra = await networkOrCache(new Request(new URL(path, self.registration.scope), {cache:'no-cache'}));
+    if (extra) text += `\n\n/* X Coder layer: ${path} */\n${await extra.text()}`;
+  }
+  return new Response(text, {
+    status:200,
+    headers:{'content-type':`${type}; charset=utf-8`, 'cache-control':'no-cache'}
+  });
 }
 
 self.addEventListener('fetch', event => {
@@ -41,31 +57,14 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Progressive v5 layering: an older v4.9 index.html that only loads app.js/styles.css
-  // receives the new AI voice/model/Git enhancements after this service worker activates.
+  // Keep the stable core while progressively layering the current presentation/runtime enhancements.
   if (url.pathname.endsWith('/app.js')) {
-    event.respondWith((async () => {
-      const base = await networkOrCache(req);
-      const extra = await networkOrCache(new Request(new URL('./v5.js', self.registration.scope), {cache:'no-cache'}));
-      if (!base) return new Response('Offline', {status:503,headers:{'content-type':'text/javascript'}});
-      if (!extra) return base;
-      return new Response(`${await base.text()}\n\n/* X Coder v5 progressive enhancements */\n${await extra.text()}`, {
-        status:200, headers:{'content-type':'text/javascript; charset=utf-8','cache-control':'no-cache'}
-      });
-    })());
+    event.respondWith(layeredResponse(req, ['./v5.js', './v51.js'], 'text/javascript'));
     return;
   }
 
   if (url.pathname.endsWith('/styles.css')) {
-    event.respondWith((async () => {
-      const base = await networkOrCache(req);
-      const extra = await networkOrCache(new Request(new URL('./v5.css', self.registration.scope), {cache:'no-cache'}));
-      if (!base) return new Response('Offline', {status:503,headers:{'content-type':'text/css'}});
-      if (!extra) return base;
-      return new Response(`${await base.text()}\n\n/* X Coder v5 styles */\n${await extra.text()}`, {
-        status:200, headers:{'content-type':'text/css; charset=utf-8','cache-control':'no-cache'}
-      });
-    })());
+    event.respondWith(layeredResponse(req, ['./v5.css', './v51.css'], 'text/css'));
     return;
   }
 
