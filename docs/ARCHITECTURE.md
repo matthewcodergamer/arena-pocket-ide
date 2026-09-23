@@ -79,7 +79,7 @@ worker/               Cloudflare Worker AI router (API keys stay server-side); r
 | `workbench/icons.js` | `fileIconHtml(path)`, `languageNameFor(path)` | Seti icons |
 | `workbench/theme.js` | `THEMES`, `applyTheme(previewId?)`, `currentTheme()` | |
 
-Cross-feature APIs (stubs exist; the owning feature replaces the implementation but keeps the exports):
+Cross-feature APIs (the owning feature implements them; exports are stable). `codeEditor` extras: `getText(path)` (open editor's unsaved text, else the stored file), `isDirty(path)`, `languageId(pathOrAlias)`, `onDidChangeContent(fn)`; `editors.open({type:'file', path}, {reveal:{line, col, endLine, endCol, select:true}})` selects and centers a range.
 `src/editor/api.js` (`codeEditor`), `src/preview/api.js` (`preview`), `src/panel/api.js` (`terminal`),
 `src/scm/api.js` (`git`), `src/ai/api.js` (`ai`), `src/views/files-api.js` (`files`).
 
@@ -92,8 +92,11 @@ Cross-feature APIs (stubs exist; the owning feature replaces the implementation 
 | `markdown-preview` | `path` | editor |
 | `preview` | `entry` | preview |
 | `welcome` | — | welcome |
-| `settings` | `query?` | settings editor |
-| `keybindings` | — | settings editor |
+| `settings` | `query?` (supports `@modified`, `@id:key1,prefix.`) | settings editor |
+| `settings-json` | `revealSetting?` | settings editor |
+| `playground` | — | welcome |
+| `keyboard-reference` | — | welcome |
+| `keybindings` | `query?` | settings editor |
 | `extension` | `id` | extensions |
 | `release-notes` | — | welcome |
 

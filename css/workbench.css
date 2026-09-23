@@ -365,7 +365,9 @@ body.sash-dragging iframe { pointer-events: none; }
 .statusbar-item.warning-kind { background: var(--vscode-statusBarItem-warningBackground); color: #fff; }
 .statusbar-item.prominent-kind { background: var(--vscode-statusBarItem-prominentBackground); }
 .phone .statusbar-item.hide-on-phone { display: none; }
-.phone .statusbar .right-items { overflow-x: auto; scrollbar-width: none; }
+.phone .statusbar .left-items { flex: 0 0 auto; max-width: 50%; }
+.phone .statusbar .right-items { overflow-x: auto; scrollbar-width: none; justify-content: flex-start; }
+.phone .statusbar .right-items > .statusbar-item:first-child { margin-left: auto; }
 .phone .statusbar .right-items::-webkit-scrollbar { display: none; }
 @media (pointer: coarse) { .statusbar-item-label { padding: 0 6px; } }
 

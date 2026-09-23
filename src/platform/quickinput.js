@@ -144,7 +144,8 @@ function session(source, opts = {}) {
         const icon = item.iconHtml ? h('span', { class: 'quick-input-icon', html: item.iconHtml }) : item.icon ? h('span', { class: 'quick-input-icon' }, codicon(item.icon)) : null;
         const hl = match?.matches || item.highlights;
         const label = h('span', { class: 'label-name', html: hl ? highlightMatches(item.label, hl) : escapeHtml(item.label) });
-        const desc = item.description ? h('span', { class: 'label-description', html: descMatch && !match ? highlightMatches(item.description, descMatch.matches) : escapeHtml(item.description) }) : null;
+        const dHl = descMatch && !match ? descMatch.matches : item.descriptionHighlights;
+        const desc = item.description ? h('span', { class: 'label-description', html: dHl?.length ? highlightMatches(item.description, dHl) : escapeHtml(item.description) }) : null;
         const main = h('div', { class: 'quick-input-list-rows' },
           h('div', { class: 'quick-input-list-row' }, icon, h('span', { class: 'monaco-icon-label' }, label, desc)),
           item.detail ? h('div', { class: 'quick-input-list-row detail' }, h('span', { class: 'label-detail' }, item.detail)) : null);
@@ -238,7 +239,9 @@ export const quickInput = {
       return ['', providers.get('')];
     };
     let [prefix, provider] = pickProvider(value);
+    let typed = value;
     const result = await session(async (v, state) => {
+      typed = v;
       const [p, prov] = pickProvider(v);
       prefix = p; provider = prov;
       if (!prov) return [{ label: 'No provider for this prefix', disabled: true }];
@@ -251,7 +254,7 @@ export const quickInput = {
       value, filter: false, selectValue: false, placeholder: provider?.placeholder,
       onDidChangeActive: item => provider?.onDidChangeActive?.(item)
     });
-    if (result && provider?.accept) await provider.accept(result, value);
+    if (result && provider?.accept) await provider.accept(result, typed);
     else if (!result) provider?.onCancel?.();
     return result;
   }

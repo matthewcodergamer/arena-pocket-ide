@@ -1,1 +1,363 @@
-/* editor styles */
+/* Editor feature: CodeMirror styled like VS Code's Monaco editor (Dark+/Light+/HC via variables),
+ * find widget, suggest widget icons, breadcrumbs, marker navigation, image preview, binary placeholder,
+ * diff editor, markdown preview and the mobile coding accessory bar.
+ * Colors come only from --vscode-* / --tok-* tokens; the few VS Code colors css/theme.css doesn't define
+ * are declared below as --xc-editor-* per theme type (always preferring a --vscode-* token when present). */
+
+/* ---------------- editor-only color tokens ---------------- */
+:root {
+  --xc-editor-foldingControl: var(--vscode-editorGutter-foldingControlForeground, var(--vscode-icon-foreground));
+  --xc-editor-foldBackground: var(--vscode-editor-foldBackground, rgba(38, 79, 120, .3));
+  --xc-editor-findMatchBorder: var(--vscode-editor-findMatchBorder, transparent);
+  --xc-editor-findRangeHighlight: var(--vscode-editor-findRangeHighlightBackground, rgba(58, 61, 65, .4));
+  --xc-editor-rangeHighlight: var(--vscode-editor-rangeHighlightBackground, rgba(255, 255, 255, .04));
+  --xc-editor-snippetTabstop: var(--vscode-editor-snippetTabstopHighlightBackground, rgba(124, 124, 124, .3));
+  --xc-editor-markerError: var(--vscode-editorMarkerNavigationError-background, #f14c4c);
+  --xc-editor-markerWarning: var(--vscode-editorMarkerNavigationWarning-background, #cca700);
+  --xc-editor-markerInfo: var(--vscode-editorMarkerNavigationInfo-background, #3794ff);
+  --xc-editor-unexpectedBracket: var(--vscode-editorBracketHighlight-unexpectedBracket-foreground, rgba(255, 18, 18, .8));
+  --xc-editor-checker: rgba(20, 20, 20, 1);
+  --xc-symbol-purple: var(--vscode-symbolIcon-methodForeground, #b180d7);
+  --xc-symbol-orange: var(--vscode-symbolIcon-classForeground, #ee9d28);
+  --xc-symbol-blue: var(--vscode-symbolIcon-variableForeground, #75beff);
+  --xc-suggest-row: 24px;
+  --xc-breadcrumbs-height: 22px;
+  --xc-accessory-height: 40px;
+}
+:root[data-theme-type="light"] {
+  --xc-editor-foldBackground: var(--vscode-editor-foldBackground, rgba(173, 214, 255, .3));
+  --xc-editor-findRangeHighlight: var(--vscode-editor-findRangeHighlightBackground, rgba(180, 180, 180, .3));
+  --xc-editor-rangeHighlight: var(--vscode-editor-rangeHighlightBackground, rgba(253, 255, 0, .2));
+  --xc-editor-snippetTabstop: var(--vscode-editor-snippetTabstopHighlightBackground, rgba(10, 50, 100, .2));
+  --xc-editor-markerError: var(--vscode-editorMarkerNavigationError-background, #e51400);
+  --xc-editor-markerWarning: var(--vscode-editorMarkerNavigationWarning-background, #bf8803);
+  --xc-editor-markerInfo: var(--vscode-editorMarkerNavigationInfo-background, #1a85ff);
+  --xc-editor-checker: rgba(230, 230, 230, 1);
+  --xc-symbol-purple: var(--vscode-symbolIcon-methodForeground, #652d90);
+  --xc-symbol-orange: var(--vscode-symbolIcon-classForeground, #d67e00);
+  --xc-symbol-blue: var(--vscode-symbolIcon-variableForeground, #007acc);
+}
+:root[data-theme="hc-black"] {
+  --xc-editor-findMatchBorder: var(--vscode-editor-findMatchBorder, #f38518);
+  --xc-editor-foldBackground: transparent;
+}
+@media (pointer: coarse) {
+  :root { --xc-suggest-row: 32px; --xc-breadcrumbs-height: 28px; }
+}
+
+/* ---------------- syntax tokens (also used by highlightCode in chat, previews, hovers) ---------------- */
+.tok-control { color: var(--tok-control); }
+.tok-keyword { color: var(--tok-keyword); }
+.tok-function { color: var(--tok-function); }
+.tok-variable { color: var(--tok-variable); }
+.tok-property { color: var(--tok-property); }
+.tok-parameter { color: var(--tok-parameter); }
+.tok-type { color: var(--tok-type); }
+.tok-string { color: var(--tok-string); }
+.tok-regexp { color: var(--tok-regexp); }
+.tok-escape { color: var(--tok-escape); }
+.tok-number { color: var(--tok-number); }
+.tok-constant { color: var(--tok-constant); }
+.tok-constant-var { color: var(--tok-constant-var); }
+.tok-comment { color: var(--tok-comment); }
+.tok-operator { color: var(--tok-operator); }
+.tok-punctuation { color: var(--tok-punctuation); }
+.tok-tag { color: var(--tok-tag); }
+.tok-tag-bracket { color: var(--tok-tag-bracket); }
+.tok-attribute { color: var(--tok-attribute); }
+.tok-heading { color: var(--tok-heading); font-weight: bold; }
+.tok-link { color: var(--tok-link); text-decoration: underline; }
+.tok-meta { color: var(--tok-meta); }
+.tok-label { color: var(--tok-label); }
+.tok-invalid { color: var(--tok-invalid); }
+.tok-inserted { color: var(--tok-inserted); }
+.tok-deleted { color: var(--tok-deleted); }
+.tok-emphasis { font-style: italic; }
+.tok-strong { font-weight: bold; }
+.tok-strikethrough { text-decoration: line-through; }
+/* stylesheet scope (declared after the general classes so they win) */
+.tok-css-selector { color: var(--tok-css-selector); }
+.tok-css-value { color: var(--tok-css-value); }
+.tok-css-function { color: var(--tok-function); }
+.tok-css-atrule { color: var(--tok-control); }
+.tok-css-variable { color: var(--tok-variable); }
+
+/* ---------------- editor host ---------------- */
+.editor-instance.xc-editor-root { display: flex; flex-direction: column; }
+.xc-code-editor { position: relative; flex: 1; min-height: 0; overflow: hidden; background: var(--vscode-editor-background); }
+.xc-code-editor > .cm-editor { position: absolute; inset: 0; height: 100%; }
+.xc-code-editor .cm-editor .cm-scroller { scrollbar-width: thin; scrollbar-color: var(--vscode-scrollbarSlider-background) transparent; }
+.xc-code-editor .cm-editor .cm-scroller::-webkit-scrollbar { width: 14px; height: 10px; }
+.xc-code-editor .cm-editor .cm-scroller::-webkit-scrollbar-thumb { background: var(--vscode-scrollbarSlider-background); }
+.xc-code-editor .cm-editor .cm-scroller::-webkit-scrollbar-thumb:hover { background: var(--vscode-scrollbarSlider-hoverBackground); }
+.xc-code-editor .cm-editor .cm-scroller::-webkit-scrollbar-corner, .xc-code-editor .cm-editor .cm-scroller::-webkit-scrollbar-track { background: transparent; }
+@media (pointer: coarse) { .xc-code-editor .cm-editor .cm-scroller::-webkit-scrollbar { width: 6px; height: 6px; } }
+
+/* gutter metrics: line numbers right-aligned (VS Code lineNumbersMinChars), then the folding area */
+.monaco-editor.cm-editor .cm-gutters .cm-lineNumbers .cm-gutterElement { padding: 0 6px 0 12px; min-width: 5ch; text-align: right; font-variant-numeric: tabular-nums; }
+.monaco-workbench.phone .monaco-editor.cm-editor .cm-gutters .cm-lineNumbers .cm-gutterElement { padding: 0 2px 0 6px; min-width: 3ch; }
+.monaco-editor.cm-editor .cm-gutters .cm-foldGutter .cm-gutterElement { width: 18px; padding: 0; }
+.monaco-editor.cm-editor .cm-foldGutter .codicon { font-size: 14px !important; opacity: 0; transition: opacity .1s linear; }
+.monaco-editor.cm-editor .cm-gutters:hover .cm-foldGutter .codicon,
+.monaco-editor.cm-editor .cm-foldGutter .codicon.fold-closed { opacity: 1; }
+@media (hover: none) { .monaco-editor.cm-editor .cm-foldGutter .codicon { opacity: .75; } }
+.monaco-editor.cm-editor .cm-gutter-lint { width: 0; }
+
+/* bracket pair colorization */
+.cm-bracket-1, .cm-bracket-1 > span { color: var(--vscode-editorBracketHighlight-foreground1) !important; }
+.cm-bracket-2, .cm-bracket-2 > span { color: var(--vscode-editorBracketHighlight-foreground2) !important; }
+.cm-bracket-3, .cm-bracket-3 > span { color: var(--vscode-editorBracketHighlight-foreground3) !important; }
+.cm-bracket-unexpected, .cm-bracket-unexpected > span { color: var(--xc-editor-unexpectedBracket) !important; }
+
+/* cursor styles (editor.cursorBlinking) */
+.monaco-editor.cursor-smooth .cm-cursorLayer { animation-timing-function: ease-in-out !important; }
+.monaco-editor.cursor-phase .cm-cursorLayer { animation-timing-function: cubic-bezier(.5, 0, .5, 1) !important; }
+.monaco-editor.cursor-expand .cm-cursorLayer { animation-timing-function: ease-out !important; }
+
+/* find scope (Find in Selection): hide match highlights outside the scope */
+.cm-xc-outsideScope .cm-searchMatch, .cm-searchMatch .cm-xc-outsideScope, .cm-searchMatch:has(.cm-xc-outsideScope) { background: none !important; outline: none !important; }
+
+/* Emmet abbreviation tracking */
+.monaco-editor.cm-editor .emmet-tracker { text-decoration: underline dotted var(--vscode-editorSuggestWidget-highlightForeground); text-underline-offset: 3px; }
+.monaco-editor.cm-editor .emmet-preview { padding: 4px 8px; font-size: 12px; max-width: min(420px, 80vw); }
+.monaco-editor.cm-editor .emmet-preview .cm-editor { background: transparent; }
+.monaco-editor.cm-editor .emmet-preview_error { color: var(--vscode-errorForeground); }
+
+/* ---------------- find widget ---------------- */
+.monaco-editor.cm-editor .cm-panels.cm-panels-top {
+  position: absolute; top: 0; right: 18px; left: auto; z-index: 20; background: transparent; border: none;
+  pointer-events: none;
+}
+.find-widget {
+  pointer-events: auto; position: relative; width: 419px; max-width: calc(100vw - 24px);
+  padding: 0 4px 4px 0; box-sizing: border-box;
+  background: var(--vscode-editorWidget-background); color: var(--vscode-editorWidget-foreground);
+  box-shadow: 0 0 8px 2px var(--vscode-widget-shadow);
+  border-left: 3px solid var(--vscode-editorWidget-border, transparent);
+  border-radius: 0 0 4px 4px;
+  font-family: var(--font-ui); font-size: 12px; line-height: 19px;
+  animation: xc-find-in .12s ease-out;
+}
+@keyframes xc-find-in { from { transform: translateY(-100%); } to { transform: translateY(0); } }
+.find-widget > .find-part, .find-widget > .replace-part { display: flex; align-items: center; margin: 4px 0 0 17px; min-height: 25px; }
+.find-widget > .replace-part { display: none; }
+.find-widget.replaceToggled > .replace-part { display: flex; }
+.find-widget .monaco-findInput { flex: 1; min-width: 0; display: flex; }
+.find-widget .monaco-inputbox { min-height: 25px; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border, transparent); border-radius: 2px; }
+.find-widget .monaco-inputbox:focus-within { outline: 1px solid var(--vscode-focusBorder); outline-offset: -1px; }
+.find-widget .monaco-inputbox.invalid, .find-widget.no-results .find-part .monaco-inputbox { outline: 1px solid var(--vscode-inputValidation-errorBorder); outline-offset: -1px; }
+.find-widget .monaco-inputbox > input { padding: 3px 4px; font-size: 13px; line-height: 17px; min-width: 0; }
+.find-widget .monaco-inputbox .controls { display: flex; align-items: center; gap: 1px; padding: 0 2px; }
+.find-widget .monaco-custom-toggle { width: 20px; height: 20px; font-size: 16px; }
+.find-widget .find-actions, .find-widget .replace-actions { display: flex; align-items: center; flex: none; }
+.find-widget .matchesCount { min-width: 69px; padding: 0 4px 0 6px; text-align: left; white-space: nowrap; flex: none; font-size: 12px; }
+.find-widget .matchesCount.no-results { color: var(--vscode-errorForeground); }
+.find-widget .button {
+  width: 20px; height: 20px; margin-left: 3px; display: flex; align-items: center; justify-content: center; flex: none;
+  border-radius: 3px; cursor: pointer; color: var(--vscode-icon-foreground); font-size: 16px;
+}
+.find-widget .button:hover { background: var(--vscode-toolbar-hoverBackground); }
+.find-widget .button.disabled { opacity: .3; cursor: default; background: none; }
+.find-widget .button.checked { background: var(--vscode-inputOption-activeBackground); outline: 1px solid var(--vscode-inputOption-activeBorder); outline-offset: -1px; color: var(--vscode-inputOption-activeForeground); }
+.find-widget .button.toggle { position: absolute; top: 0; left: 0; width: 18px; height: 100%; margin: 0; border-radius: 0; font-size: 14px; }
+.find-widget .button.toggle:hover { background: var(--vscode-toolbar-hoverBackground); }
+@media (pointer: coarse) {
+  .find-widget { line-height: 22px; }
+  .find-widget > .find-part, .find-widget > .replace-part { margin-left: 24px; min-height: 32px; }
+  .find-widget .monaco-inputbox { min-height: 32px; }
+  .find-widget .monaco-inputbox > input { font-size: 16px; }
+  .find-widget .button { width: 28px; height: 28px; margin-left: 2px; }
+  .find-widget .button.toggle { width: 24px; }
+  .find-widget .monaco-custom-toggle { width: 28px; height: 28px; }
+  .find-widget .matchesCount { min-width: 0; padding: 0 4px; }
+}
+/* extra space on top while the widget is open, so the first lines can scroll out from under it */
+.xc-find-open > .monaco-editor.cm-editor .cm-content { padding-top: var(--xc-find-space, 0px); }
+/* phones: full-width widget under the tabs, like code-server on iPhone */
+.monaco-workbench.phone .monaco-editor.cm-editor .cm-panels.cm-panels-top { right: 0; left: 0; }
+.monaco-workbench.phone .find-widget { width: 100%; max-width: none; border-left: none; border-radius: 0; box-shadow: 0 2px 8px var(--vscode-widget-shadow); padding-right: 6px; }
+.monaco-workbench.phone .find-widget > .find-part, .monaco-workbench.phone .find-widget > .replace-part { flex-wrap: wrap; row-gap: 2px; }
+.monaco-workbench.phone .find-widget .monaco-findInput { flex: 1 1 220px; }
+.monaco-workbench.phone .find-widget .find-actions, .monaco-workbench.phone .find-widget .replace-actions { margin-left: auto; }
+
+/* ---------------- suggest widget ---------------- */
+.cm-tooltip.cm-tooltip-autocomplete.suggest-widget > ul > li { gap: 0; }
+.suggest-widget .suggest-icon { flex: none; width: 16px; margin: 0 6px 0 2px; font-size: 16px !important; color: var(--vscode-icon-foreground); }
+.suggest-widget li[aria-selected] .suggest-icon { color: inherit; }
+.suggest-widget .cm-completionDetail { display: none; }
+.suggest-widget li[aria-selected] .cm-completionDetail { display: block; }
+.suggest-kind-function .suggest-icon, .suggest-kind-method .suggest-icon, .suggest-kind-constructor .suggest-icon { color: var(--xc-symbol-purple); }
+.suggest-kind-class .suggest-icon, .suggest-kind-enum .suggest-icon, .suggest-kind-type .suggest-icon, .suggest-kind-event .suggest-icon { color: var(--xc-symbol-orange); }
+.suggest-kind-variable .suggest-icon, .suggest-kind-field .suggest-icon, .suggest-kind-interface .suggest-icon, .suggest-kind-enum-member .suggest-icon, .suggest-kind-property .suggest-icon { color: var(--xc-symbol-blue); }
+
+/* symbol icons (outline, breadcrumbs, go to symbol) */
+.kind-method, .kind-function, .kind-constructor { color: var(--xc-symbol-purple); }
+.kind-class, .kind-enum, .kind-event, .kind-struct { color: var(--xc-symbol-orange); }
+.kind-variable, .kind-field, .kind-interface, .kind-enumMember, .kind-property { color: var(--xc-symbol-blue); }
+.quick-input-icon .symbol-icon { font-size: 16px; }
+
+/* ---------------- breadcrumbs ---------------- */
+.breadcrumbs-below-tabs {
+  flex: none; height: var(--xc-breadcrumbs-height); display: flex; align-items: stretch;
+  background: var(--vscode-breadcrumb-background); color: var(--vscode-breadcrumb-foreground);
+  font-size: 13px; overflow: hidden; user-select: none; -webkit-user-select: none;
+}
+.breadcrumbs-below-tabs .monaco-breadcrumbs {
+  display: flex; align-items: center; flex: 1; min-width: 0; padding-left: 8px;
+  overflow-x: auto; overflow-y: hidden; scrollbar-width: none; white-space: nowrap; -webkit-overflow-scrolling: touch;
+}
+.breadcrumbs-below-tabs .monaco-breadcrumbs::-webkit-scrollbar { display: none; }
+.monaco-breadcrumb-item { display: flex; align-items: center; flex: none; height: 100%; cursor: pointer; outline: none; }
+.monaco-breadcrumb-item .monaco-icon-label { display: flex; align-items: center; gap: 4px; padding: 0 2px; border-radius: 3px; }
+.monaco-breadcrumb-item:hover .monaco-icon-label, .monaco-breadcrumb-item:focus-visible .monaco-icon-label { color: var(--vscode-breadcrumb-focusForeground); }
+.monaco-breadcrumb-item .breadcrumb-icon { display: inline-flex; width: 16px; height: 16px; align-items: center; justify-content: center; }
+.monaco-breadcrumb-item .breadcrumb-symbol-icon { font-size: 16px !important; }
+.monaco-breadcrumb-item .breadcrumb-separator { font-size: 16px !important; margin: 0 1px; opacity: .8; }
+.monaco-breadcrumb-item.last .breadcrumb-separator { display: none; }
+.monaco-breadcrumb-item.last { padding-right: 8px; }
+
+/* ---------------- marker navigation (F8) ---------------- */
+.marker-widget {
+  margin: 2px 0 4px; font-family: var(--font-ui); font-size: 13px; line-height: 1.5; white-space: normal;
+  background: var(--vscode-editorWidget-background); color: var(--vscode-editorWidget-foreground);
+  border-top: 2px solid var(--xc-editor-markerError); border-bottom: 2px solid var(--xc-editor-markerError);
+}
+.marker-widget.severity-warning { border-color: var(--xc-editor-markerWarning); }
+.marker-widget.severity-info { border-color: var(--xc-editor-markerInfo); }
+.marker-widget .head { display: flex; align-items: center; gap: 6px; padding: 2px 6px 2px 10px; min-height: 26px; }
+.marker-widget .severity-icon { color: var(--vscode-editorError-foreground); }
+.marker-widget.severity-warning .severity-icon { color: var(--vscode-editorWarning-foreground); }
+.marker-widget.severity-info .severity-icon { color: var(--vscode-editorInfo-foreground); }
+.marker-widget .title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; }
+.marker-widget .count { color: var(--vscode-descriptionForeground); flex: 1 0 auto; white-space: nowrap; }
+.marker-widget .actions { display: flex; gap: 2px; }
+.marker-widget .actions .action-label { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 3px; color: var(--vscode-icon-foreground); cursor: pointer; }
+.marker-widget .actions .action-label:hover { background: var(--vscode-toolbar-hoverBackground); }
+.marker-widget .body { padding: 2px 12px 6px 32px; user-select: text; -webkit-user-select: text; }
+.marker-widget .source, .marker-widget .location { color: var(--vscode-descriptionForeground); }
+@media (pointer: coarse) { .marker-widget .actions .action-label { width: 30px; height: 30px; } }
+
+/* ---------------- image preview ---------------- */
+.editor-instance.xc-image-root { background: var(--vscode-editor-background); }
+.image-preview {
+  position: absolute; inset: 0; overflow: auto; outline: none; touch-action: pan-x pan-y;
+  background-color: var(--vscode-editor-background);
+  background-image: linear-gradient(45deg, var(--xc-editor-checker) 25%, transparent 25%, transparent 75%, var(--xc-editor-checker) 75%, var(--xc-editor-checker)),
+                    linear-gradient(45deg, var(--xc-editor-checker) 25%, transparent 25%, transparent 75%, var(--xc-editor-checker) 75%, var(--xc-editor-checker));
+  background-position: 0 0, 8px 8px; background-size: 16px 16px;
+  cursor: zoom-in;
+}
+.image-preview-stage { min-width: 100%; min-height: 100%; display: flex; align-items: center; justify-content: center; padding: 10px; box-sizing: border-box; }
+.image-preview.zoomed .image-preview-stage { display: inline-flex; }
+.image-preview.scale-to-fit .image-preview-img { max-width: 100%; max-height: calc(100% - 0px); object-fit: contain; }
+.image-preview.scale-to-fit .image-preview-stage { position: absolute; inset: 0; }
+.image-preview .image-preview-img { display: block; flex: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.image-preview.pixelated .image-preview-img { image-rendering: pixelated; }
+.image-preview .image-load-error { display: flex; align-items: center; gap: 6px; padding: 20px; color: var(--vscode-errorForeground); }
+
+/* read-only notice (binary file opened with "Open Anyway") */
+.editor-readonly-notice { flex: none; padding: 4px 12px; font-size: 12px; color: var(--vscode-editorWidget-foreground); background: var(--vscode-inputValidation-infoBackground); border-bottom: 1px solid var(--vscode-inputValidation-infoBorder); }
+
+/* ---------------- binary placeholder ---------------- */
+.editor-placeholder {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; padding: 24px; text-align: center; color: var(--vscode-foreground); background: var(--vscode-editor-background); font-size: 13px;
+}
+.editor-placeholder-icon .codicon { font-size: 48px !important; opacity: .6; }
+.editor-placeholder-label { max-width: 460px; line-height: 1.5; }
+.editor-placeholder-meta { color: var(--vscode-descriptionForeground); font-size: 12px; }
+.editor-placeholder-buttons { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+
+/* ---------------- diff editor ---------------- */
+.editor-instance.xc-diff-root { display: flex; flex-direction: column; }
+.diff-toolbar {
+  flex: none; display: flex; align-items: center; gap: 8px; min-height: 30px; padding: 3px 10px;
+  background: var(--vscode-editorGroupHeader-tabsBackground); border-bottom: 1px solid var(--vscode-editorGroup-border);
+  font-size: 12px; overflow-x: auto; scrollbar-width: none;
+}
+.diff-toolbar::-webkit-scrollbar { display: none; }
+.diff-toolbar .diff-title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.diff-toolbar .diff-spacer { flex: 1; }
+.diff-toolbar .diff-hint { color: var(--vscode-descriptionForeground); white-space: nowrap; }
+.diff-toolbar .monaco-button { min-height: 24px; padding: 2px 10px; font-size: 12px; }
+@media (pointer: coarse) { .diff-toolbar .monaco-button { min-height: 30px; } }
+.diff-body { flex: 1; min-height: 0; position: relative; }
+.diff-body > .cm-mergeView { position: absolute; inset: 0; overflow-y: auto; }
+.diff-body > .cm-mergeView .cm-mergeViewEditors { min-height: 100%; }
+.diff-body > .cm-mergeView .cm-mergeViewEditor + .cm-mergeViewEditor { border-left: 1px solid var(--vscode-editorGroup-border); }
+.diff-body > .cm-mergeView .cm-editor { height: auto; min-height: 100%; }
+.diff-body.inline > .cm-editor { position: absolute; inset: 0; height: 100%; }
+
+/* ---------------- markdown preview (VS Code markdown.css) ---------------- */
+.editor-instance.xc-markdown-root { background: var(--vscode-editor-background); }
+.markdown-preview { position: absolute; inset: 0; overflow: auto; outline: none; -webkit-overflow-scrolling: touch; }
+.markdown-body {
+  max-width: 882px; margin: 0 auto; padding: 0 26px 40px;
+  font-family: var(--font-ui); font-size: 14px; line-height: 22px; word-wrap: break-word;
+  color: var(--vscode-editor-foreground); user-select: text; -webkit-user-select: text;
+}
+.monaco-workbench.phone .markdown-body { padding: 0 16px 40px; }
+.markdown-body > :first-child { margin-top: 20px; }
+.markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4, .markdown-body h5, .markdown-body h6 { font-weight: 600; margin: 24px 0 16px; line-height: 1.25; }
+.markdown-body h1 { font-size: 2em; padding-bottom: .3em; border-bottom: 1px solid var(--vscode-textSeparator-foreground); }
+.markdown-body h2 { font-size: 1.5em; padding-bottom: .3em; border-bottom: 1px solid var(--vscode-textSeparator-foreground); }
+.markdown-body h3 { font-size: 1.25em; }
+.markdown-body h4 { font-size: 1em; }
+.markdown-body h5 { font-size: .875em; }
+.markdown-body h6 { font-size: .85em; color: var(--vscode-descriptionForeground); }
+.markdown-body p, .markdown-body ul, .markdown-body ol, .markdown-body pre, .markdown-body blockquote, .markdown-body table { margin: 0 0 16px; }
+.markdown-body ul, .markdown-body ol { padding-left: 2em; }
+.markdown-body li + li { margin-top: .25em; }
+.markdown-body li.task-list-item { list-style: none; }
+.markdown-body li.task-list-item .task-list-item-checkbox { margin: 0 .35em .25em -1.4em; vertical-align: middle; }
+.markdown-body a { color: var(--vscode-textLink-foreground); text-decoration: none; }
+.markdown-body a:hover { color: var(--vscode-textLink-activeForeground); text-decoration: underline; }
+.markdown-body hr { border: 0; height: 2px; border-bottom: 2px solid var(--vscode-textSeparator-foreground); margin: 24px 0; }
+.markdown-body img { max-width: 100%; max-height: 100%; }
+.markdown-body img.missing { display: inline-block; padding: 2px 6px; border: 1px dashed var(--vscode-errorForeground); color: var(--vscode-errorForeground); font-size: 12px; }
+.markdown-body blockquote { margin: 0 7px 16px 5px; padding: 0 16px 0 10px; border-left: 5px solid var(--vscode-textBlockQuote-border); background: var(--vscode-textBlockQuote-background); }
+.markdown-body blockquote > :last-child { margin-bottom: 0; }
+.markdown-body code { font-family: var(--font-mono); font-size: 1em; line-height: 1.357em; }
+.markdown-body :not(pre) > code { color: var(--vscode-textPreformat-foreground); background: var(--vscode-textPreformat-background); padding: 1px 4px; border-radius: 3px; }
+.markdown-body pre { padding: 16px; border-radius: 3px; overflow: auto; background: var(--vscode-textCodeBlock-background); tab-size: 4; }
+.markdown-body pre code { color: var(--vscode-editor-foreground); white-space: pre; }
+.markdown-body table { border-collapse: collapse; display: block; overflow-x: auto; max-width: 100%; }
+.markdown-body th { text-align: left; border-bottom: 1px solid var(--vscode-textSeparator-foreground); }
+.markdown-body th, .markdown-body td { padding: 5px 10px; }
+.markdown-body tbody tr + tr td { border-top: 1px solid var(--vscode-textSeparator-foreground); }
+.markdown-body .markdown-error { color: var(--vscode-errorForeground); }
+
+/* ---------------- mobile coding accessory bar ---------------- */
+.accessory-bar {
+  flex: none; height: var(--xc-accessory-height); display: flex; align-items: stretch;
+  background: var(--vscode-editorWidget-background); border-top: 1px solid var(--vscode-widget-border, var(--vscode-editorWidget-border));
+  padding-left: var(--safe-left); padding-right: var(--safe-right);
+  user-select: none; -webkit-user-select: none; touch-action: pan-x; z-index: 30;
+}
+body:not(.keyboard-open) .accessory-bar { padding-bottom: 0; }
+.accessory-scroller { flex: 1; min-width: 0; display: flex; align-items: center; gap: 5px; padding: 0 6px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+.accessory-scroller::-webkit-scrollbar { display: none; }
+.accessory-key {
+  flex: none; min-width: 34px; height: 30px; padding: 0 9px; margin: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--vscode-keybindingLabel-border); border-bottom-color: var(--vscode-keybindingLabel-bottomBorder);
+  border-radius: 5px; box-shadow: inset 0 -1px 0 var(--vscode-keybindingLabel-bottomBorder);
+  background: var(--vscode-keybindingLabel-background); color: var(--vscode-foreground);
+  font: 500 15px/1 var(--font-mono); cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+.accessory-key.icon-key { padding: 0 7px; }
+.accessory-key .codicon { font-size: 17px !important; }
+.accessory-key.pressed, .accessory-key:active { background: var(--vscode-toolbar-activeBackground); }
+.accessory-separator { flex: none; width: 1px; height: 22px; background: var(--vscode-widget-border, var(--vscode-editorWidget-border)); margin: 0 3px; }
+
+/* ---------------- minimap ---------------- */
+.monaco-editor.cm-editor .cm-minimap-gutter { background: var(--vscode-minimap-background, var(--vscode-editor-background)); border-left: none; }
+.monaco-editor.cm-editor .cm-minimap-overlay-container .cm-minimap-overlay { background: var(--vscode-scrollbarSlider-background); }
+.monaco-editor.cm-editor .cm-minimap-overlay-container:hover .cm-minimap-overlay { background: var(--vscode-scrollbarSlider-hoverBackground); }
+
+/* ---------------- outline view ---------------- */
+.outline-tree .outline-row { gap: 2px; }
+.outline-tree .outline-icon { margin-right: 4px; font-size: 16px; }
+.outline-tree .outline-row.selected { background: var(--vscode-list-inactiveSelectionBackground); color: var(--vscode-list-inactiveSelectionForeground); }
+.outline-tree:focus-within .outline-row.selected { background: var(--vscode-list-activeSelectionBackground); color: var(--vscode-list-activeSelectionForeground); }
+.outline-tree .view-message { opacity: .8; }

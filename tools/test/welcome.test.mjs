@@ -30,7 +30,7 @@ try {
   // Interactive playground with live editors
   await page.click('.welcomePage .item.showInteractivePlayground button');
   await page.waitForSelector('.playground .cm-editor', { timeout: 10000 });
-  assert.ok((await page.$$('.playground .cm-editor')).length >= 5);
+  await page.waitForFunction(() => document.querySelectorAll('.playground .cm-editor').length >= 7, null, { timeout: 15000 });
   await t.shot('welcome-playground');
 
   // Keyboard cheatsheet

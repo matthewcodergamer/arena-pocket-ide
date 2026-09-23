@@ -39,6 +39,8 @@ export const panel = {
   isVisible(id) { return layout.panelVisible && (!id || id === activeId); },
   setBadge(id, value) { const t = tabs.get(id); if (!t) return; t.badge = value || null; renderTabsOnly(); },
   refreshActions() { renderActions(); },
+  /** Registered tabs in display order: [{ id, title }] (used by View: Open View). */
+  tabs() { return sorted().map(t => ({ id: t.id, title: t.title })); },
   restore() {
     const saved = localStorage.getItem('xcoder.panel.active');
     activeId = tabs.has(saved) ? saved : sorted().find(t => t.id === 'terminal')?.id || sorted()[0]?.id || null;

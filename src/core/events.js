@@ -10,6 +10,7 @@
 //   'editor:opened'       ({key, input})
 //   'editor:closed'       ({key, input})
 //   'editor:dirty'        ({key, path, dirty})
+//   'editor:pinned'       ({key})                       a preview (italic) tab became a normal tab
 //   'editor:saved'        ({path})
 //   'editor:cursor'       ({path, line, col, selectionLength, lines})
 //   'settings:changed'    ({key, value})

@@ -64,7 +64,8 @@ export const editors = {
     let entry = entries.find(e => e.key === key);
     if (entry) {
       if (pinned) entry.pinned = true;
-      if (opts.inputUpdate) { entry.input = { ...entry.input, ...input }; entry.instance?.setInput?.(entry.input); }
+      const changed = JSON.stringify({ ...entry.input, ...input }) !== JSON.stringify(entry.input);
+      if (opts.inputUpdate || (changed && entry.instance?.setInput)) { entry.input = { ...entry.input, ...input }; entry.instance?.setInput?.(entry.input); }
     } else {
       entry = { key, input, pinned, dirty: false, instance: null, container: null, state: null, lastActive: Date.now() };
       const previewIdx = !pinned && opts.preview !== false ? entries.findIndex(e => !e.pinned && !e.dirty) : -1;
@@ -86,7 +87,7 @@ export const editors = {
     return entry.instance;
   },
 
-  pin(key = activeKey) { const e = entries.find(x => x.key === key); if (e && !e.pinned) { e.pinned = true; renderTabs(); persistSoon(); } },
+  pin(key = activeKey) { const e = entries.find(x => x.key === key); if (e && !e.pinned) { e.pinned = true; renderTabs(); persistSoon(); bus.emit('editor:pinned', { key }); } },
 
   setDirty(key, dirty) {
     const e = entries.find(x => x.key === key);

@@ -1,1 +1,87 @@
-/* search styles */
+/* Search view (VS Code workbench.view.search): search widget, query details, messages, results tree. */
+
+.search-view { position: absolute; inset: 0; display: flex; flex-direction: column; }
+.search-view > .monaco-progress-container { position: absolute; top: 0; left: 0; right: 0; z-index: 3; }
+
+/* ---------------- widget ---------------- */
+.search-widgets-container { flex: none; padding: 6px 12px 0 2px; }
+.search-widget { position: relative; display: grid; grid-template-columns: 17px 1fr; column-gap: 0; row-gap: 6px; }
+.search-widget .toggle-replace-button {
+  grid-row: 1 / span 1; grid-column: 1; width: 16px; align-self: stretch;
+  display: flex; align-items: center; justify-content: center; box-sizing: border-box;
+  border-radius: 3px; cursor: pointer; color: var(--vscode-icon-foreground); font-size: 16px;
+}
+.search-widgets-container.replace-visible .search-widget .toggle-replace-button { grid-row: 1 / span 2; }
+@media (hover: hover) { .search-widget .toggle-replace-button:hover { background: var(--vscode-toolbar-hoverBackground); } }
+.search-widget .search-container { grid-column: 2; position: relative; min-width: 0; }
+.search-widget .replace-container { grid-column: 2; display: none; align-items: center; gap: 2px; min-width: 0; }
+.search-widgets-container.replace-visible .replace-container { display: flex; }
+.search-widget .replace-container .monaco-inputbox { flex: 1; min-width: 0; }
+.search-widget .replace-actions { display: flex; flex: none; }
+.search-widget .replace-actions .action-label.disabled { opacity: .4; pointer-events: none; }
+
+.search-view .monaco-inputbox { min-height: 26px; }
+.search-view .monaco-inputbox > input { padding: 3px 4px 3px 6px; font-size: 13px; line-height: 18px; }
+.search-view .monaco-inputbox .controls { display: flex; align-items: center; gap: 1px; padding-right: 2px; flex: none; }
+.search-view .monaco-inputbox .controls .monaco-custom-toggle.codicon { display: inline-flex; align-items: center; justify-content: center; font-size: 16px; }
+.search-view .search-inputbox.error { border-color: var(--vscode-inputValidation-errorBorder); }
+.search-view .search-container .monaco-inputbox-message { left: 0; right: 0; }
+@media (pointer: coarse) {
+  .search-view .monaco-inputbox > input { font-size: 16px; padding-top: 6px; padding-bottom: 6px; } /* 16px stops iOS zoom */
+  .search-widget { grid-template-columns: 24px 1fr; }
+  .search-widget .toggle-replace-button { width: 22px; }
+}
+
+/* query details (files to include / exclude) */
+.search-view .query-details { position: relative; min-height: 18px; margin: 4px 0 0 17px; }
+@media (pointer: coarse) { .search-view .query-details { margin-left: 24px; min-height: 28px; } }
+.search-view .query-details .more {
+  position: absolute; right: 0; top: 0; width: 25px; height: 16px;
+  display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 3px; color: var(--vscode-icon-foreground);
+}
+@media (pointer: coarse) { .search-view .query-details .more { width: 34px; height: 26px; } }
+.search-view .query-details .more:hover { background: var(--vscode-toolbar-hoverBackground); }
+.search-view .query-details .file-types { display: none; }
+.search-view .query-details.expanded .file-types { display: block; }
+.search-view .query-details.expanded { padding-top: 14px; }
+@media (pointer: coarse) { .search-view .query-details.expanded { padding-top: 24px; } }
+.search-view .query-details .file-types h4 { margin: 4px 0 3px; font-size: 11px; font-weight: 400; color: var(--vscode-foreground); opacity: .9; }
+.search-view .query-details .file-types .monaco-inputbox { margin-bottom: 4px; }
+
+/* ---------------- messages ---------------- */
+.search-messages { flex: none; padding: 0 12px 0 22px; font-size: 13px; line-height: 18px; color: var(--vscode-foreground); cursor: default; }
+.search-messages .message { margin: 6px 0 4px; overflow-wrap: anywhere; -webkit-user-select: text; user-select: text; }
+.search-messages .message.warning { color: var(--vscode-editorWarning-foreground); }
+.search-messages .message-link { color: var(--vscode-textLink-foreground); cursor: pointer; }
+.search-messages .message-link:hover { text-decoration: underline; }
+
+/* ---------------- results ---------------- */
+.search-view .results { flex: 1; min-height: 0; position: relative; margin-top: 4px; }
+.search-row { font-size: 13px; padding-right: 4px; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
+.search-row .monaco-tl-twistie { width: 16px; flex: none; box-sizing: content-box; color: var(--vscode-icon-foreground); }
+.search-row .monaco-tl-contents { flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; }
+.search-row .monaco-icon-label { flex: 1; min-width: 0; display: flex; align-items: center; overflow: hidden; }
+.search-row .monaco-icon-label .label-name { flex: none; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.search-row .monaco-icon-label .label-description { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: .7; font-size: .9em; margin-left: .5em; }
+.search-row .monaco-count-badge { flex: none; margin: 0 4px 0 6px; }
+.search-row.folder .monaco-icon-label { padding-left: 2px; }
+
+.search-match { flex: 1; min-width: 0; white-space: pre; overflow: hidden; text-overflow: ellipsis; }
+.search-match .findInFileMatch {
+  background-color: var(--vscode-editor-findMatchHighlightBackground);
+  border: 1px solid var(--vscode-editor-findMatchHighlightBorder, transparent); box-sizing: border-box;
+}
+.search-match .findInFileMatch.replace-strike { background-color: var(--vscode-diffEditor-removedTextBackground); text-decoration: line-through; }
+.search-match .replaceMatch { background-color: var(--vscode-diffEditor-insertedTextBackground); }
+.hc-black .search-match .findInFileMatch { border: 1px dashed var(--vscode-editor-findMatchHighlightBorder, var(--vscode-contrastActiveBorder, currentColor)); }
+
+/* row actions: shown on hover / selection, always on touch */
+.search-row-actions { display: none; flex: none; align-items: center; gap: 1px; margin-left: 4px; }
+.search-row:hover .search-row-actions, .search-row.selected .search-row-actions, .search-row.focused .search-row-actions { display: flex; }
+.search-row:hover .monaco-count-badge, .search-row.selected .monaco-count-badge { display: none; }
+.search-row-actions .action-label.codicon { width: 20px; height: 20px; font-size: 14px; }
+@media (hover: none) {
+  .search-row-actions { display: flex; }
+  .search-row .monaco-count-badge, .search-row:hover .monaco-count-badge, .search-row.selected .monaco-count-badge { display: inline-block; }
+  .search-row-actions .action-label.codicon { width: 28px; height: 28px; font-size: 15px; }
+}
