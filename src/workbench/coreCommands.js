@@ -59,7 +59,9 @@ export function initCoreStatusbar() {
   const remote = statusbar.add({ id: 'status.host', alignment: 'left', priority: 10000, kind: 'remote', text: '$(remote)', tooltip: 'X Coder', run: el => showHostMenu(el) });
   const updateRemote = () => {
     const online = navigator.onLine;
-    remote.update({ text: online ? '$(remote) X Coder' : '$(debug-disconnect) Offline', tooltip: online ? `X Coder · ${workspace.name} (stored on this device)` : 'Offline — local editing, preview and terminal still work', kind: online ? 'remote' : 'warning' });
+    // Like code-server, the remote indicator shows the host the IDE is served from.
+    const host = location.host || 'X Coder';
+    remote.update({ text: online ? `$(remote) ${host}` : '$(debug-disconnect) Offline', tooltip: online ? `X Coder on ${host} · ${workspace.name} is stored on this device` : 'Offline — local editing, preview and terminal still work', kind: online ? 'remote' : 'warning' });
   };
   updateRemote();
   window.addEventListener('online', updateRemote);
