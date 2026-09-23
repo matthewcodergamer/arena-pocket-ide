@@ -406,3 +406,6 @@ body.keyboard-open .phone .part.panel:not(:focus-within) { max-height: 34%; }
 
 /* selectable regions */
 .selectable, .cm-editor, input, textarea, [contenteditable="true"], pre, code { user-select: text; -webkit-user-select: text; }
+
+/* Run and Debug: status bar turns orange while a program runs (like VS Code while debugging) */
+.monaco-workbench.debugging .statusbar { background: var(--vscode-statusBar-debuggingBackground); }
