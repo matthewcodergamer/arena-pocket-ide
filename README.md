@@ -1,147 +1,70 @@
-# X Coder v4.7
+# X Coder 6
 
-This build improves X Coder AI conversation behavior, progress/status UX, mobile AI layout, proposal visibility, and Undo/Redo clarity. X Coder can now chat normally about off-topic subjects while remaining project-focused when coding work is requested.
+**X Coder is Visual Studio Code for your iPhone** — a 1:1 VS Code–style IDE that runs entirely in the
+browser (Safari or a Home Screen app), plus iPad and desktop. Projects live on your device, the editor is
+CodeMirror 6 themed exactly like VS Code, and **X Coder AI** is a multi-model coding agent that can build
+whole projects, analyze projects and photos you upload, run your code, and fix what it finds.
 
-# X Coder
+Live app: <https://matthewcodergamer.github.io/arena-pocket-ide/>
 
-X Coder is a mobile-first browser IDE with a local IndexedDB filesystem, CodeMirror editor, live browser preview, GitHub sync, and a multi-provider coding agent.
+## Highlights
 
-## X Coder 3.0 AI architecture
+| Area | What you get |
+|---|---|
+| Workbench | VS Code layout on iPhone (code-server style): Activity Bar with ☰ application menu, side bar views, tabs with preview/dirty states, breadcrumbs, bottom panel, blue status bar, Command Palette (⇧⌘P), Quick Open (⌘P), Go to Line/Symbol, notifications, context menus (long-press), title bar + command center on iPad/desktop |
+| Themes | Dark+ (default), Dark Modern, Light+, Light Modern, High Contrast · auto light/dark · VS Code syntax colors · Seti file icons · codicons |
+| Editor | CodeMirror 6 styled like Monaco: ~150 languages, bracket pair colorization, indent guides, minimap, folding, multi-cursor, VS Code keybindings and find/replace widget, autocomplete, Emmet, format document, live problems (JS/JSON/syntax), diff editor, Markdown preview, image viewer, iPhone coding key bar |
+| Explorer & Search | File tree with git/problem decorations, inline create/rename, drag & drop, import files/folders/ZIP, export ZIP, Open Editors, Outline, workspace search & replace with regex and globs |
+| Source Control | GitHub clone/pull/commit & push/sync, staging, diffs, discard, branches, publish a project to a new repo, commit history — sign in with a token (or GitHub device flow through the Worker) |
+| Run | Live preview (HTML/CSS/JS with ES modules and npm packages via esm.sh, TypeScript/JSX, Python via Pyodide, Markdown), DevTools, Run and Debug view with launch configurations |
+| Panel | Terminal (`xsh`: ls/cd/cat/grep/find/mkdir/rm/mv/cp/echo > file, pipes, `node file.js`, `python file.py`, `git …`, `curl`), Problems, Output, Debug Console with REPL |
+| X Coder AI | Chat view like VS Code Chat · **Ask / Edit / Agent** modes · agent reads files, searches, edits, runs the preview and fixes errors · **photo & screenshot analysis** (vision) · upload a ZIP/folder and it analyzes the project · voice input and natural read-aloud · Auto model routing across Claude/GPT/Gemini/Grok (via Puter) and free providers (via the X Coder Worker) · every change is reviewable with Keep/Undo |
+| Accounts | GitHub, X Coder Cloud sync (Puter) |
+| PWA | Works offline after the first visit, installs to the Home Screen, updates in the background |
 
-```text
-X Coder
-   ├─ Puter.js (browser/user account)
-   └─ existing Cloudflare Worker
-        ├─ Groq
-        ├─ OpenRouter
-        ├─ Mistral
-        ├─ SambaNova
-        ├─ Google Gemini
-        ├─ Cloudflare Workers AI binding
-        └─ Runway status/media capability
-```
+## Install on iPhone
 
-The Worker service is intentionally still named `arena-pocket-ide-proxy` so the existing workers.dev URL does not change. The X Coder product name is independent from that deployment identifier.
+1. Open the live app in **Safari**.
+2. Tap **Share → Add to Home Screen**.
+3. Launch **X Coder** from the Home Screen for the full-screen VS Code layout.
 
-## Cloudflare secrets
+Your projects, settings and chats from earlier X Coder versions are kept.
 
-Add whichever providers you have to the existing Worker as encrypted Secrets:
+## Set up X Coder AI
 
-```text
-GEMINI_API_KEY
-GROQ_API_KEY
-OPENROUTER_API_KEY
-MISTRAL_API_KEY
-SAMBANOVA_API_KEY
-RUNWAY_API_KEY
-```
+X Coder AI works with either (or both):
 
-A missing key simply marks that provider as not configured; it does not stop the other routes.
+- **Puter** — tap **Accounts → Sign in to X Coder Cloud (Puter)**. This unlocks frontier models (Claude,
+  GPT, Gemini, Grok, DeepSeek…), natural voices and cloud sync. Auto mode prefers the strongest model.
+- **The X Coder Worker** (`worker/`) — a Cloudflare Worker that routes to free/cheap providers with your
+  own API keys kept as Cloudflare secrets (Groq, OpenRouter, Gemini, Mistral, SambaNova, BazaarLink,
+  Workers AI). See [worker/README.md](worker/README.md). Set its URL in **Settings → X Coder AI → Router Url**.
 
-Never put these values in `wrangler.toml`, `app.js`, GitHub Pages, source maps, or the public repository.
+API keys never touch the browser or this repository.
 
-## Public provider URLs
-
-The public base URLs live in `worker/wrangler.toml`; they are not secrets. The Worker uses OpenAI-compatible Chat Completions adapters for Groq, OpenRouter, Mistral, and SambaNova and a dedicated adapter for Gemini.
-
-## Cloudflare Workers AI
-
-`worker/wrangler.toml` includes:
-
-```toml
-[ai]
-binding = "AI"
-```
-
-That exposes Workers AI to the Worker as `env.AI` without another API key.
-
-## Puter
-
-The frontend loads:
-
-```html
-<script src="https://js.puter.com/v2/"></script>
-```
-
-Puter is intentionally not stored in Cloudflare Secrets. The user signs into Puter from X Coder Settings. X Coder can then discover Puter chat models dynamically and use them manually or as a fallback.
-
-## Agent safety and continuity
-
-The AI never directly mutates project files. It returns structured operations such as create, replace, patch, rename, move, delete, and create-folder. X Coder validates them, shows a review/diff, checks source hashes for conflicts, applies only selected operations, and creates an undo checkpoint.
-
-The active agent conversation is stored per project in IndexedDB. If one provider runs out of quota or becomes busy, another provider receives the same current conversation, project context, and tool results rather than restarting the task.
-
-## Runtime features
-
-- HTML/CSS/JavaScript live preview
-- JavaScript module and Three.js preview support
-- Python preview with Pyodide
-- Java source editing/preview (full JVM execution still requires a Java runtime service)
-- Local browser terminal commands
-- GitHub pull/status/commit/push
-- PWA / Add to Home Screen
-
-## X Coder 4.0 appearance and BazaarLink
-
-X Coder 4.0 adds a complete visual refresh based on the supplied mobile references. Appearance can be switched between **System**, **Dark**, and **Light** in Settings. The editor theme follows the selected appearance.
-
-The Cloudflare Worker can now use BazaarLink as another AI route. Add the secret in Cloudflare:
+## Development
 
 ```bash
-cd worker
-npx wrangler secret put BAZAARLINK_API_KEY
+npm install            # dev tooling only (esbuild, CodeMirror sources, Playwright)
+npm run serve          # http://localhost:8080
+npm test               # Playwright tests (iPhone + desktop emulation) and unit tests
+npm run build:vendor   # rebuild vendor/ after upgrading a library
+node tools/gen-sw.mjs  # refresh the service worker precache list (CI does this on deploy)
 ```
 
-The included Worker configuration uses:
+The site has **no build step**: `index.html` loads native ES modules from `src/`. Third-party code is
+pre-bundled into `vendor/` and committed so the app works offline. See
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the module map and APIs.
 
-```toml
-BAZAARLINK_API_BASE = "https://api.bazaarlink.ai/v1"
-BAZAARLINK_MODEL = "auto:free"
-```
+## Security
 
-Never put `BAZAARLINK_API_KEY` in frontend JavaScript, GitHub Pages variables that are embedded into the site, or any committed file. It belongs only in the Worker secret store.
+- Project code runs only in sandboxed iframes without same-origin access to X Coder's storage.
+- AI output is rendered through DOMPurify; the agent refuses to read `.env`, keys and `.aiignore` paths.
+- The GitHub token is kept in session storage unless you enable **Git: Remember Token**.
+- The Worker enforces an origin allowlist, rate limits, and an SSRF-safe `/fetch`.
 
+## License & credits
 
-# X Coder 4.1 update
-
-- Uses the selected minimalist sledgehammer artwork for all PWA/iOS icons.
-- Mobile editor defaults to **no word wrap** so each logical source line keeps one gutter line number, matching the supplied reference design.
-- The programming accessory strip only appears while the software keyboard is open in the editor.
-- Safari/PWA layout follows `visualViewport` height/offset to remove dead space under the bottom navigation.
-- Added more compact Apple-style UI spacing and subtle workspace/menu/modal transitions.
-- BazaarLink `auto:free` and OpenRouter free routing are prioritized before single-provider fallbacks when configured.
-- Provider settings show specific discovery/error information instead of a vague global failure.
-
-## iPhone install note
-
-To get the app-like standalone layout, open the deployed site in **Safari**, use **Share → Add to Home Screen**, then launch X Coder from the new Home Screen icon. A normal Safari tab will still show Safari's address/navigation UI; a web page cannot remove that browser chrome by itself.
-
-## Cloudflare secret
-
-Keep `BAZAARLINK_API_KEY` as a Cloudflare **Secret**, never a Text variable or frontend value. The frontend only needs the Worker URL.
-
-
-## X Coder 4.2 editor/UI update
-
-- Interface glyphs use a consistent iOS/SF-Symbols-inspired geometry and weight. Apple SF Symbols themselves are not redistributed in this web project; the web UI uses original SVG glyphs shaped to the same platform conventions.
-- Supported source files show technology/language logos from Devicon in the editor title, Explorer, and open-tabs list (HTML, CSS, JavaScript, TypeScript, React JSX/TSX, Python, Java, and Git where applicable).
-- Editor syntax color presets: VS Code Dark+, VS Code Light+, GitHub Dark, Dracula, and X Coder.
-- The Browser preview now includes Eruda mobile developer tools. The Web Console button opens an interactive console/DOM/network/resources/source inspector inside the running preview. The separate Captured Logs button keeps X Coder's bounded log stream for AI error context.
-- A webpage cannot programmatically open Apple's native Safari Web Inspector. On Apple devices the true Safari Web Inspector is attached externally from Safari on a Mac. Eruda is therefore the in-app developer-console implementation.
-
-
-## X Coder 4.5 icon system
-
-Interface symbols load from the `andrewtavis/sf-symbols-online` GitHub repository at runtime. The app automatically chooses `glyphs_white` in dark mode and `glyphs` in light mode. To add another icon, add an internal-name → SF-Symbol-name entry to `SF_SYMBOLS` in `app.js`, or use `sfSymbolIcon("symbol.name")` directly. If the remote PNG fails, X Coder tries `sf-symbols/<symbol>.svg`, then its built-in SVG fallback.
-
-Programming-language/tool logos use Devicon v2.17.0 and are intentionally rendered at 16px like a compact VS Code file badge. `package.json` and package lockfiles use Node.js identity; Three.js-named source files use the Three.js logo.
-
-
-# X Coder 4.6 additions
-
-- Fixed Safari CodeMirror startup crash by loading `HighlightStyle`/`syntaxHighlighting` from `@codemirror/language`.
-- Added a full Projects workspace so unrelated apps stay separated.
-- Added X Coder Cloud sync powered by Puter account authentication and per-user Puter KV storage. The sign-in UI must clearly disclose that Puter provides authentication; X Coder does not impersonate Apple/Google sign-in itself.
-- Added a unified IDE Console for Preview, IDE, AI and Cloud messages. The Browser preview still has Eruda for interactive Console/Elements/Network/Resources/Sources.
-- AI may request a new project using `project_action:create_project` instead of mixing an unrelated app into the current project.
-- AI proposal review is now a full-height mobile sheet so Apply/Reject and diffs remain reachable.
+VS Code look-and-feel reproduced for familiarity; X Coder is not affiliated with Microsoft.
+Codicons (CC BY 4.0) and Seti UI file icons (MIT) are used under their licenses. CodeMirror (MIT),
+marked (MIT), DOMPurify (Apache-2.0/MPL-2.0), JSZip (MIT), acorn (MIT), Emmet (MIT).
