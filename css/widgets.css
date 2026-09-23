@@ -1,0 +1,291 @@
+/* Shared VS Code widgets: buttons, inputs, lists, menus, quick input, notifications, dialogs, progress. */
+
+/* ---------------- buttons ---------------- */
+.monaco-button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 4px 11px; min-height: 26px;
+  border: 1px solid var(--vscode-button-border, transparent); border-radius: 2px;
+  background: var(--vscode-button-background); color: var(--vscode-button-foreground);
+  font-size: 13px; line-height: 18px; cursor: pointer; white-space: nowrap; text-align: center;
+  user-select: none; -webkit-user-select: none;
+}
+.monaco-button:hover { background: var(--vscode-button-hoverBackground); text-decoration: none; }
+.monaco-button:focus-visible { outline: 1px solid var(--vscode-focusBorder); outline-offset: 2px; }
+.monaco-button.secondary { background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); }
+.monaco-button.secondary:hover { background: var(--vscode-button-secondaryHoverBackground); }
+.monaco-button.danger { background: #c72e0f; color: #fff; }
+.monaco-button.full-width, .monaco-text-button { width: 100%; }
+.monaco-button:disabled, .monaco-button.disabled { opacity: .4; cursor: default; pointer-events: none; }
+.monaco-button .codicon { font-size: 16px; }
+.monaco-button-dropdown { display: flex; }
+.monaco-button-dropdown > .monaco-button:first-child { flex: 1; border-radius: 2px 0 0 2px; }
+.monaco-button-dropdown > .monaco-button.dropdown { width: 28px; padding: 0; border-left: 1px solid rgba(255,255,255,.25); border-radius: 0 2px 2px 0; }
+@media (pointer: coarse) { .monaco-button { min-height: 34px; padding: 6px 14px; } }
+
+.text-link-button { background: none; border: 0; padding: 0; color: var(--vscode-textLink-foreground); cursor: pointer; font-size: inherit; }
+.text-link-button:hover { text-decoration: underline; }
+
+/* ---------------- inputs ---------------- */
+.monaco-inputbox, .xc-input, .xc-textarea, .xc-select, .monaco-select-box {
+  display: block; width: 100%;
+  background: var(--vscode-input-background); color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border); border-radius: 2px;
+  font-size: 13px; line-height: 18px;
+}
+.monaco-inputbox { display: flex; align-items: center; position: relative; }
+.monaco-inputbox > input, .monaco-inputbox > textarea, .xc-input, .xc-textarea {
+  flex: 1; width: 100%; min-width: 0; padding: 4px 6px; border: 0; outline: none;
+  background: transparent; color: inherit; font: inherit; resize: none;
+}
+.xc-input, .xc-textarea { border: 1px solid var(--vscode-input-border); background: var(--vscode-input-background); }
+.monaco-inputbox:focus-within, .xc-input:focus, .xc-textarea:focus, .xc-select:focus, .monaco-select-box:focus {
+  outline: 1px solid var(--vscode-focusBorder); outline-offset: -1px;
+}
+.monaco-inputbox ::placeholder, .xc-input::placeholder, .xc-textarea::placeholder { color: var(--vscode-input-placeholderForeground); opacity: 1; }
+.monaco-inputbox .controls { display: flex; gap: 2px; padding-right: 2px; }
+.monaco-inputbox.error, .xc-input.error { border-color: var(--vscode-inputValidation-errorBorder); }
+.xc-select, .monaco-select-box {
+  appearance: none; -webkit-appearance: none;
+  padding: 4px 26px 4px 6px; cursor: pointer;
+  background: var(--vscode-dropdown-background) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'><path fill='%23c5c5c5' d='M7.976 10.072l4.357-4.357.62.618L8.284 11h-.618L3 6.333l.62-.618 4.356 4.357z'/></svg>") right 4px center / 16px no-repeat;
+  color: var(--vscode-dropdown-foreground); border: 1px solid var(--vscode-dropdown-border);
+}
+.vs .xc-select, .vs .monaco-select-box {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'><path fill='%23424242' d='M7.976 10.072l4.357-4.357.62.618L8.284 11h-.618L3 6.333l.62-.618 4.356 4.357z'/></svg>");
+}
+@media (pointer: coarse) {
+  .monaco-inputbox > input, .xc-input { padding: 7px 8px; }
+  .xc-select, .monaco-select-box { padding-top: 7px; padding-bottom: 7px; }
+}
+
+/* input option toggles (Match Case / Whole Word / Regex) */
+.monaco-custom-toggle {
+  width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; flex: none;
+  border: 1px solid transparent; border-radius: 3px; cursor: pointer; color: var(--vscode-icon-foreground);
+}
+.monaco-custom-toggle:hover { background: var(--vscode-toolbar-hoverBackground); }
+.monaco-custom-toggle.checked { background: var(--vscode-inputOption-activeBackground); border-color: var(--vscode-inputOption-activeBorder); color: var(--vscode-inputOption-activeForeground); }
+@media (pointer: coarse) { .monaco-custom-toggle { width: 28px; height: 28px; } }
+
+/* checkbox */
+input[type="checkbox"].xc-checkbox, .monaco-checkbox {
+  appearance: none; -webkit-appearance: none; margin: 0; flex: none;
+  width: 18px; height: 18px; border-radius: 3px; cursor: pointer;
+  border: 1px solid var(--vscode-checkbox-border); background: var(--vscode-checkbox-background);
+  display: inline-grid; place-items: center; vertical-align: middle;
+}
+input[type="checkbox"].xc-checkbox:checked::after, .monaco-checkbox:checked::after {
+  content: '\eab2'; font: normal normal normal 14px/1 codicon; color: var(--vscode-checkbox-foreground, var(--vscode-foreground));
+}
+input[type="checkbox"].xc-checkbox:focus-visible { outline: 1px solid var(--vscode-focusBorder); outline-offset: 1px; }
+
+/* ---------------- lists / trees ---------------- */
+.monaco-list { outline: none; position: relative; }
+.monaco-list-row {
+  display: flex; align-items: center;
+  height: var(--row-height); line-height: var(--row-height);
+  padding-right: 8px; cursor: pointer; white-space: nowrap; overflow: hidden;
+  color: inherit; font-size: 13px; position: relative;
+}
+.monaco-list-row:hover { background: var(--vscode-list-hoverBackground); }
+.monaco-list-row.selected { background: var(--vscode-list-inactiveSelectionBackground); color: var(--vscode-list-inactiveSelectionForeground); }
+.monaco-list:focus-within .monaco-list-row.selected { background: var(--vscode-list-activeSelectionBackground); color: var(--vscode-list-activeSelectionForeground); }
+.monaco-list:focus-within .monaco-list-row.focused { outline: 1px solid var(--vscode-list-focusOutline); outline-offset: -1px; }
+.monaco-list-row .codicon { flex: none; }
+.monaco-list-row .label-description { opacity: .7; margin-left: .5em; font-size: .92em; }
+.monaco-list-row .highlight, .highlight { color: var(--vscode-list-highlightForeground); font-weight: 700; }
+.monaco-tl-twistie { width: 16px; flex: none; display: flex; align-items: center; justify-content: center; }
+.monaco-tl-twistie.collapsible::before { font: normal normal normal 16px/1 codicon; content: '\eab6'; /* chevron-right */ }
+.monaco-tl-twistie.collapsible.expanded::before { content: '\eab4'; /* chevron-down */ }
+.monaco-icon-label { display: flex; align-items: center; min-width: 0; overflow: hidden; gap: 0; }
+.monaco-icon-label .label-name { overflow: hidden; text-overflow: ellipsis; }
+.file-icon { width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.file-icon svg { width: 16px; height: 16px; fill: currentColor; }
+.file-icon.seti svg { transform: scale(1.35); }
+.file-icon .codicon { font-size: 16px; }
+
+/* empty / message states inside views */
+.view-message { padding: 10px 20px; font-size: 13px; line-height: 1.5; color: var(--vscode-foreground); }
+.view-message p { margin: 0 0 12px; }
+.view-message .monaco-button { width: 100%; margin-bottom: 8px; }
+
+/* keybinding labels */
+.monaco-keybinding { display: inline-flex; align-items: center; gap: 2px; margin-left: auto; flex: none; }
+.monaco-keybinding-key {
+  display: inline-block; padding: 3px 5px; min-width: 12px; text-align: center;
+  font-size: 11px; line-height: 10px; vertical-align: middle;
+  border: 1px solid var(--vscode-keybindingLabel-border); border-bottom-color: var(--vscode-keybindingLabel-bottomBorder);
+  border-radius: 3px; box-shadow: inset 0 -1px 0 var(--vscode-keybindingLabel-bottomBorder);
+  background: var(--vscode-keybindingLabel-background); color: var(--vscode-keybindingLabel-foreground);
+}
+
+/* ---------------- progress bar ---------------- */
+.monaco-progress-container { width: 100%; height: 2px; overflow: hidden; flex: none; }
+.monaco-progress-container .progress-bit { width: 2%; height: 2px; background: var(--vscode-progressBar-background); display: none; }
+.monaco-progress-container.active .progress-bit, .monaco-progress-container.infinite .progress-bit { display: block; animation: xc-progress 4s linear infinite; }
+@keyframes xc-progress {
+  from { transform: translateX(0%) scaleX(1); }
+  50% { transform: translateX(2500%) scaleX(3); }
+  to { transform: translateX(4900%) scaleX(1); }
+}
+
+/* ---------------- context menu ---------------- */
+.context-view-layer { position: fixed; inset: 0; z-index: 2500; }
+.monaco-menu {
+  position: absolute; min-width: 180px; max-width: min(420px, calc(100vw - 8px));
+  padding: 4px 0; overflow-y: auto; overscroll-behavior: contain;
+  background: var(--vscode-menu-background); color: var(--vscode-menu-foreground);
+  border: 1px solid var(--vscode-menu-border); border-radius: 6px;
+  box-shadow: 0 2px 8px var(--vscode-widget-shadow);
+  font-size: 13px; outline: none;
+  animation: xc-fade-in .08s ease-out;
+}
+@keyframes xc-fade-in { from { opacity: 0; } to { opacity: 1; } }
+.monaco-menu .menu-title { padding: 6px 12px 4px; font-size: 11px; text-transform: uppercase; opacity: .7; }
+.monaco-menu .action-item {
+  display: flex; align-items: center; height: var(--menu-item-height);
+  margin: 0 4px; padding: 0 4px 0 0; border-radius: 3px; cursor: pointer; outline: none;
+}
+.monaco-menu .action-item.focused, .monaco-menu .action-item:hover {
+  background: var(--vscode-menu-selectionBackground); color: var(--vscode-menu-selectionForeground);
+}
+.monaco-menu .action-item.disabled { opacity: .45; cursor: default; background: transparent !important; color: inherit !important; }
+.monaco-menu .action-item.danger .action-label { color: var(--vscode-errorForeground); }
+.monaco-menu .action-item.danger.focused .action-label, .monaco-menu .action-item.danger:hover .action-label { color: inherit; }
+.monaco-menu .menu-item-check { width: 26px; flex: none; display: flex; align-items: center; justify-content: center; }
+.monaco-menu .menu-item-check .codicon { font-size: 14px; }
+.monaco-menu .action-label { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 10px; }
+.monaco-menu .keybinding { flex: none; padding: 0 12px 0 20px; font-size: 12px; opacity: .85; }
+.monaco-menu .submenu-indicator { flex: none; width: 20px; display: flex; justify-content: center; }
+.monaco-menu .submenu-indicator .codicon { font-size: 14px; }
+.monaco-menu .action-separator { display: block; width: auto; height: 1px; margin: 4px 0; background: var(--vscode-menu-separatorBackground); }
+.monaco-menu .menu-back { border-bottom: 0; font-weight: 600; }
+
+/* ---------------- quick input ---------------- */
+.quick-input-backdrop { position: fixed; inset: 0; z-index: 2540; background: rgba(0, 0, 0, .28); }
+.quick-input-widget {
+  position: fixed; z-index: 2550;
+  top: calc(var(--vv-top, 0px) + var(--safe-top) + 44px);
+  left: 50%; transform: translateX(-50%);
+  width: min(600px, calc(100vw - 16px));
+  max-height: calc(var(--vvh, 100vh) - var(--safe-top) - 60px);
+  display: flex; flex-direction: column;
+  padding-bottom: 6px;
+  background: var(--vscode-quickInput-background); color: var(--vscode-quickInput-foreground);
+  border-radius: 6px; box-shadow: 0 0 8px 2px var(--vscode-widget-shadow);
+  border: 1px solid var(--vscode-widget-border);
+  font-size: 13px;
+}
+.phone .quick-input-widget, body:has(.monaco-workbench.phone) .quick-input-widget { top: calc(var(--vv-top, 0px) + var(--safe-top) + 6px); }
+.quick-input-titlebar { padding: 4px 8px; text-align: center; background: var(--vscode-quickInputTitle-background); border-radius: 6px 6px 0 0; font-size: 12px; }
+.quick-input-header { display: flex; align-items: center; gap: 6px; padding: 6px 6px 0; }
+.quick-input-box { flex: 1; border: 1px solid var(--vscode-focusBorder, transparent) !important; outline: none !important; }
+.quick-input-box input { height: 26px; padding: 0 8px !important; font-size: 13px; }
+@media (pointer: coarse) { .quick-input-box input { height: 36px; font-size: 16px; } }
+.quick-input-count { font-size: 11px; padding: 2px 6px; border-radius: 11px; background: var(--vscode-badge-background); color: var(--vscode-badge-foreground); }
+.quick-input-message { padding: 6px 11px 2px; font-size: 12px; opacity: .85; }
+.quick-input-message.error { color: var(--vscode-errorForeground); opacity: 1; }
+.quick-input-progress { margin-top: 4px; }
+.quick-input-widget.input-only .quick-input-list { display: none; }
+.quick-input-list { flex: 1; min-height: 0; max-height: 440px; overflow-y: auto; overscroll-behavior: contain; padding: 0 5px; margin-top: 2px; }
+.quick-input-list-entry {
+  display: flex; align-items: center; gap: 6px;
+  min-height: 22px; padding: 0 6px 0 11px; border-radius: 3px; cursor: pointer; position: relative;
+}
+@media (pointer: coarse) { .quick-input-list-entry { min-height: 36px; } }
+.quick-input-list-entry.has-separator { border-top: 1px solid var(--vscode-pickerGroup-border); margin-top: 2px; }
+.quick-input-list-entry.focused { background: var(--vscode-quickInputList-focusBackground); color: var(--vscode-quickInputList-focusForeground); }
+.quick-input-list-entry.focused .highlight { color: inherit; }
+.quick-input-list-entry.disabled { opacity: .55; cursor: default; }
+.quick-input-list-rows { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; padding: 2px 0; }
+.quick-input-list-row { display: flex; align-items: center; gap: 6px; min-width: 0; line-height: 20px; }
+.quick-input-list-row .monaco-icon-label { white-space: nowrap; }
+.quick-input-list-row .label-description { opacity: .75; margin-left: .6em; font-size: .92em; overflow: hidden; text-overflow: ellipsis; }
+.quick-input-list-row.detail { opacity: .75; font-size: 12px; line-height: 16px; }
+.quick-input-list-row.detail .label-detail { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.quick-input-icon { width: 16px; height: 16px; flex: none; display: inline-flex; align-items: center; justify-content: center; }
+.quick-input-list-separator { flex: none; margin-left: auto; padding-left: 8px; font-size: 12px; color: var(--vscode-pickerGroup-foreground); }
+.quick-input-list-entry-action-bar { display: none; gap: 2px; flex: none; }
+.quick-input-list-entry:hover .quick-input-list-entry-action-bar, .quick-input-list-entry.focused .quick-input-list-entry-action-bar { display: flex; }
+@media (hover: none) { .quick-input-list-entry-action-bar { display: flex; } }
+.quick-input-checkbox { margin-right: 4px; }
+
+/* ---------------- notifications ---------------- */
+.notifications-toasts {
+  position: fixed; z-index: 2400;
+  right: calc(8px + var(--safe-right));
+  bottom: calc(var(--status-height) + var(--safe-bottom) + 8px);
+  width: 450px; max-width: calc(100vw - 16px);
+  display: flex; flex-direction: column; gap: 6px; pointer-events: none;
+}
+body.keyboard-open .notifications-toasts { bottom: calc(100% - var(--vv-top, 0px) - var(--vvh, 100%) + 8px); }
+.notification-toast, .notifications-center {
+  background: var(--vscode-notifications-background); color: var(--vscode-notifications-foreground);
+  border: 1px solid var(--vscode-notifications-border); border-radius: 4px;
+  box-shadow: 0 0 8px 2px var(--vscode-widget-shadow); overflow: hidden; pointer-events: auto;
+}
+.notification-toast { animation: xc-toast-in .18s ease-out; }
+.notification-toast.closing { opacity: 0; transform: translateY(6px); transition: .15s; }
+@keyframes xc-toast-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.notification-list-item-main-row { display: flex; align-items: flex-start; gap: 8px; padding: 10px 6px 10px 10px; }
+.notification-list-item-icon { flex: none; font-size: 16px; line-height: 22px; }
+.notification-toast.info .notification-list-item-icon, .notification-list-item.info .notification-list-item-icon { color: var(--vscode-notificationsInfoIcon-foreground); }
+.notification-toast.warning .notification-list-item-icon, .notification-list-item.warning .notification-list-item-icon { color: var(--vscode-notificationsWarningIcon-foreground); }
+.notification-toast.error .notification-list-item-icon, .notification-list-item.error .notification-list-item-icon { color: var(--vscode-notificationsErrorIcon-foreground); }
+.notification-list-item-message { flex: 1; min-width: 0; line-height: 22px; font-size: 13px; overflow-wrap: anywhere; user-select: text; -webkit-user-select: text; }
+.notification-list-item-toolbar-container { flex: none; }
+.notification-list-item-detail { padding: 0 12px 8px 34px; font-size: 12px; opacity: .8; white-space: pre-wrap; }
+.notification-list-item-details-row { display: flex; align-items: center; gap: 8px; padding: 0 10px 10px 34px; }
+.notification-list-item-source { flex: 1; font-size: 12px; opacity: .7; }
+.notification-list-item-buttons-container { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.notification-list-item-buttons-container .monaco-button { min-height: 24px; padding: 2px 10px; }
+.notification-toast > .monaco-progress-container { height: 2px; }
+.notifications-center {
+  position: fixed; z-index: 2450;
+  right: calc(8px + var(--safe-right)); bottom: calc(var(--status-height) + var(--safe-bottom) + 8px);
+  width: 450px; max-width: calc(100vw - 16px); max-height: 50vh; display: flex; flex-direction: column;
+}
+.notifications-center-header { display: flex; align-items: center; height: 35px; padding: 0 6px 0 12px; background: var(--vscode-notificationCenterHeader-background); font-size: 11px; text-transform: uppercase; }
+.notifications-center-header-title { flex: 1; }
+.notifications-center-header-toolbar { display: flex; gap: 2px; }
+.notifications-list-container { overflow-y: auto; }
+.notification-list-item { border-top: 1px solid var(--vscode-notifications-border); }
+.notification-list-item .notification-list-item-source { padding: 0 12px 8px 34px; }
+
+/* ---------------- dialogs ---------------- */
+.monaco-dialog-modal-block {
+  position: fixed; inset: 0; z-index: 2600;
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+  background: rgba(0, 0, 0, .3);
+  animation: xc-fade-in .1s ease-out;
+}
+.monaco-dialog-box {
+  width: 100%; max-width: 500px; max-height: calc(var(--vvh, 100vh) - 32px); overflow: auto;
+  padding: 20px 20px 16px;
+  background: var(--vscode-editorWidget-background); color: var(--vscode-editorWidget-foreground, var(--vscode-foreground));
+  border: 1px solid var(--vscode-widget-border); border-radius: 6px;
+  box-shadow: 0 0 8px 2px var(--vscode-widget-shadow);
+}
+.monaco-dialog-box.shake { animation: xc-shake .3s; }
+@keyframes xc-shake { 25% { transform: translateX(-6px); } 50% { transform: translateX(6px); } 75% { transform: translateX(-3px); } }
+.dialog-message-row { display: flex; gap: 14px; align-items: flex-start; }
+.dialog-icon .codicon { font-size: 34px !important; }
+.dialog-icon.info .codicon, .dialog-icon.question .codicon { color: var(--vscode-notificationsInfoIcon-foreground); }
+.dialog-icon.warning .codicon { color: var(--vscode-notificationsWarningIcon-foreground); }
+.dialog-icon.error .codicon { color: var(--vscode-notificationsErrorIcon-foreground); }
+.dialog-message-container { flex: 1; min-width: 0; padding-top: 4px; }
+.dialog-message { font-weight: 600; font-size: 13px; line-height: 20px; overflow-wrap: anywhere; user-select: text; -webkit-user-select: text; }
+.dialog-message-detail { margin-top: 8px; font-size: 13px; line-height: 19px; opacity: .9; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; -webkit-user-select: text; }
+.dialog-message-body { margin-top: 10px; font-size: 13px; line-height: 1.5; user-select: text; -webkit-user-select: text; }
+.dialog-checkbox-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 13px; }
+.dialog-buttons-row { margin-top: 20px; }
+.dialog-buttons { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.dialog-buttons .monaco-button { min-width: 80px; }
+
+/* ---------------- misc ---------------- */
+.xc-kbd { font-family: var(--font-mono); font-size: 12px; }
+.xc-muted { color: var(--vscode-descriptionForeground); }
+.xc-error-text { color: var(--vscode-errorForeground); }
+.xc-row { display: flex; align-items: center; gap: 8px; }
+.xc-spacer { flex: 1; }
+.codicon.spin, .codicon-loading { animation: codicon-spin 1.2s linear infinite; }

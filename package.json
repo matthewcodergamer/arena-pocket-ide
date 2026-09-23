@@ -1,10 +1,37 @@
 {
   "name": "x-coder",
-  "version": "5.1.1",
+  "version": "6.0.0",
   "private": true,
-  "description": "X Coder — mobile-first browser IDE with multi-provider AI, model quick switching, natural speech, PWA, local/cloud projects, preview, and GitHub sync",
+  "type": "module",
+  "description": "X Coder — a VS Code–style IDE for iPhone and the browser: local projects, CodeMirror editor, live preview, terminal, GitHub source control, and a multi-provider AI coding agent with vision and voice.",
   "scripts": {
-    "serve": "npx serve -l 8080 .",
-    "check": "node --check app.js && node --check worker/src/index.js"
+    "serve": "node tools/dev-server.mjs",
+    "build:vendor": "node tools/build-vendor.mjs",
+    "check": "node tools/check.mjs",
+    "test": "node tools/test/run.mjs"
+  },
+  "devDependencies": {
+    "@codemirror/autocomplete": "^6.20.3",
+    "@codemirror/commands": "^6.8.1",
+    "@codemirror/language": "^6.11.3",
+    "@codemirror/language-data": "^6.5.2",
+    "@codemirror/lint": "^6.9.7",
+    "@codemirror/merge": "^6.12.2",
+    "@codemirror/search": "^6.5.11",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.13",
+    "@emmetio/codemirror6-plugin": "^0.4.1",
+    "@lezer/common": "^1.5.2",
+    "@lezer/highlight": "^1.2.1",
+    "@replit/codemirror-indentation-markers": "^6.5.3",
+    "@replit/codemirror-minimap": "^0.5.2",
+    "@vscode/codicons": "^0.0.46-24",
+    "acorn": "^8.18.0",
+    "dompurify": "^3.4.15",
+    "esbuild": "^0.28.2",
+    "jszip": "^3.10.2",
+    "marked": "^18.0.14",
+    "playwright": "^1.56.1",
+    "seti-icons": "^0.0.4"
   }
 }
