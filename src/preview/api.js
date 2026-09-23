@@ -13,5 +13,10 @@ export const preview = {
    *  → { entry, logs: [{level, text}], errors: [string], durationMs } */
   async captureRun({ entry, timeoutMs = 4000 } = {}) { return { entry, logs: [], errors: ['Preview is not available'], durationMs: 0 }; },
   /** Recent console entries from the visible preview: [{level, text, time}] */
-  logs() { return []; }
+  logs() { return []; },
+  /** Evaluates an expression inside the running preview (Debug Console REPL) → { ok, text } */
+  async evaluate(expression) { return { ok: false, text: 'Preview is not running' }; },
+  /** Runs a script file headlessly (terminal `node file.js` / `python file.py`).
+   *  opts: { args: string[], onOutput(stream: 'stdout'|'stderr', text), signal } → Promise<{ exitCode }> */
+  async runScript(path, opts = {}) { throw new Error('Script runner is not available'); }
 };
