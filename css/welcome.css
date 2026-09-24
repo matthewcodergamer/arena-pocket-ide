@@ -1,0 +1,159 @@
+/* Welcome page — mirrors VS Code 1.51 / code-server's classic welcomePage.css (sizes in em of a 10px base). */
+
+:root { --welcome-button-bg: rgba(0, 0, 0, .2); --welcome-button-hover-bg: rgba(200, 235, 255, .072); }
+:root[data-theme-type="light"] { --welcome-button-bg: rgba(0, 0, 0, .04); --welcome-button-hover-bg: rgba(0, 100, 150, .1); }
+:root.hc-black { --welcome-button-bg: #000; --welcome-button-hover-bg: #000; }
+
+.welcome-tab-icon { width: 16px; height: 16px; display: block; border-radius: 3px; }
+
+.welcomePageContainer {
+  position: absolute; inset: 0;
+  display: flex; justify-content: center; align-items: flex-start;
+  overflow: auto; -webkit-overflow-scrolling: touch;
+  background: var(--vscode-editor-background);
+  color: var(--vscode-foreground);
+  user-select: text; -webkit-user-select: text;
+  outline: none;
+}
+.welcomePage {
+  width: 90%; max-width: 1200px;
+  font-size: 10px;
+  padding-bottom: 24px;
+}
+.welcomePage .row { display: flex; flex-flow: row; }
+.welcomePage .row .section { overflow: hidden; }
+.welcomePage .row .splash, .welcomePage .row .commands { overflow: hidden; flex: 1 1 0; min-width: 0; }
+.welcomePage .row .splash { padding-right: 1.2em; }
+.welcomePage p { font-size: 1.3em; }
+.welcomePage a { color: var(--vscode-textLink-foreground); text-decoration: none; cursor: pointer; }
+.welcomePage a:hover { color: var(--vscode-textLink-activeForeground); text-decoration: underline; }
+.welcomePage a:focus-visible { outline: 1px solid var(--vscode-focusBorder); outline-offset: -1px; text-decoration: underline; }
+.welcomePage .detail { color: var(--vscode-descriptionForeground); }
+
+.welcomePage h1 {
+  padding: 0; margin: 0; border: none;
+  font-weight: normal; font-size: 3.6em; line-height: 1.2;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  color: var(--vscode-foreground);
+}
+.welcomePage .title { margin-top: 1em; margin-bottom: 1em; flex: 1 100%; }
+.welcomePage .subtitle { margin: .2em 0 0; font-size: 2.6em; display: block; font-weight: 200; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--vscode-foreground); opacity: .85; }
+.hc-black .welcomePage .subtitle { font-weight: 400; opacity: 1; }
+.welcomePage h2 { font-weight: 200; margin-top: 17px; margin-bottom: 5px; font-size: 1.9em; line-height: initial; color: var(--vscode-foreground); white-space: nowrap; }
+.hc-black .welcomePage h2 { font-weight: 400; }
+
+.welcomePage .splash .section { margin-bottom: 3.6em; }
+.welcomePage .splash ul { margin: 0; font-size: 1.3em; list-style: none; padding: 0; }
+.welcomePage .splash li { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.55; }
+.welcomePage.emptyRecent .splash .recent .list { display: none; }
+.welcomePage .splash .recent .none { display: none; margin: 0; }
+.welcomePage.emptyRecent .splash .recent .none { display: initial; }
+.welcomePage .splash .recent li.moreRecent { margin-top: 5px; }
+.welcomePage .splash .recent .path { padding-left: 1em; }
+.welcomePage .splash .showOnStartup { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 6px; margin: 0 0 1em; }
+.welcomePage .splash .showOnStartup > .checkbox { vertical-align: sub; }
+
+.welcomePage .commands .list { list-style: none; padding: 0; }
+.welcomePage .commands .item { margin: 7px 0; }
+.welcomePage .commands .item button {
+  margin: 1px; padding: 12px 10px; width: calc(100% - 2px); min-height: 5em;
+  font-size: 1.3em; font-family: inherit; text-align: left; cursor: pointer; white-space: nowrap;
+  border: none; border-radius: 0;
+  background: var(--welcome-button-bg); color: var(--vscode-foreground);
+  display: block;
+}
+.welcomePage .commands .item button:hover { background: var(--welcome-button-hover-bg); }
+.welcomePage .commands .item button:focus-visible { outline: 1px solid var(--vscode-focusBorder); }
+.welcomePage .commands .item button > span { display: inline-block; width: 100%; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.welcomePage .commands .item button h3 { font-weight: normal; font-size: 1em; margin: 0 0 .25em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hc-black .welcomePage .commands .item button { border: 1px solid var(--vscode-widget-border); }
+.hc-black .welcomePage .commands .item button > h3 { font-weight: bold; }
+.hc-black .welcomePage .commands .item button:hover { outline: 1px dashed var(--vscode-focusBorder); outline-offset: -5px; }
+
+/* Phones keep the classic two columns (just like code-server on an iPhone) — slightly tighter. */
+.editor-container .welcomePage { width: calc(100% - 28px); }
+@media (max-width: 420px) {
+  .welcomePage .row .splash { padding-right: 1em; }
+  .welcomePage .commands .item button { padding: 10px 9px; }
+}
+@media (max-width: 300px) {
+  .welcomePage .row { flex-direction: column; }
+}
+
+/* ---------------- Interface overview overlay ---------------- */
+.welcomeOverlay {
+  position: fixed; inset: 0; z-index: 2700;
+  background: rgba(0, 0, 0, .55);
+  color: #fff; font-size: 13px;
+  animation: xc-fade-in .15s ease-out;
+}
+.vs .welcomeOverlay { background: rgba(255, 255, 255, .8); color: #1e1e1e; }
+.welcomeOverlay-box { position: absolute; border: 1px dashed currentColor; border-radius: 3px; opacity: .7; pointer-events: none; }
+.welcomeOverlay-label {
+  position: absolute; white-space: nowrap; font-size: 13px; padding: 2px 7px; border-radius: 3px;
+  background: var(--vscode-editorWidget-background); color: var(--vscode-editorWidget-foreground, var(--vscode-foreground));
+  border: 1px solid var(--vscode-widget-border); box-shadow: 0 2px 6px var(--vscode-widget-shadow); pointer-events: none;
+}
+.welcomeOverlay-label.right { transform: translateY(-50%); }
+.welcomeOverlay-label.right::before { content: '← '; }
+.welcomeOverlay-label .shortcut, .welcomeOverlay-key .shortcut { opacity: .75; font-size: 12px; }
+.welcomeOverlay-center {
+  position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center;
+}
+.welcomeOverlay-key { font-size: 18px; font-weight: 300; display: flex; gap: 10px; align-items: baseline; white-space: nowrap; }
+.welcomeOverlay-key .shortcut { font-size: 16px; }
+.welcomeOverlay-hint { font-size: 12px; opacity: .7; margin-top: 8px; }
+
+/* ---------------- Playground / cheatsheet documents ---------------- */
+.welcome-doc {
+  position: absolute; inset: 0; overflow: auto; -webkit-overflow-scrolling: touch;
+  padding: 20px max(20px, calc((100% - 900px) / 2)) 40px;
+  color: var(--vscode-foreground); background: var(--vscode-editor-background);
+  user-select: text; -webkit-user-select: text; font-size: 13px; line-height: 1.5;
+}
+.welcome-doc h1 { font-size: 26px; font-weight: 400; margin: 6px 0 8px; }
+.welcome-doc h2 { font-size: 18px; font-weight: 400; margin: 28px 0 8px; }
+.welcome-doc .detail { color: var(--vscode-descriptionForeground); }
+.playground-keys { list-style: none; padding: 0; margin: 6px 0; display: flex; flex-direction: column; gap: 4px; }
+.playground-keys li { display: flex; align-items: center; gap: 10px; }
+.playground-keys .monaco-keybinding { margin-left: 0; }
+.playground-editor {
+  margin-top: 8px; border: 1px solid var(--vscode-editorWidget-border, var(--vscode-widget-border));
+  background: var(--vscode-editor-background); min-height: 40px; overflow: hidden;
+}
+.playground-editor .cm-editor { font-family: var(--font-mono); font-size: 13px; max-height: 280px; }
+.playground-editor .cm-editor.cm-focused { outline: 1px solid var(--vscode-focusBorder); }
+.playground-editor .cm-gutters { background: var(--vscode-editorGutter-background); color: var(--vscode-editorLineNumber-foreground); border: none; }
+.playground-editor .cm-activeLine { background: transparent; box-shadow: inset 0 0 0 1px var(--vscode-editor-lineHighlightBorder); }
+.playground-editor .cm-activeLineGutter { background: transparent; color: var(--vscode-editorLineNumber-activeForeground); }
+.playground-editor .cm-cursor { border-left-color: var(--vscode-editorCursor-foreground); }
+.playground-editor .cm-selectionBackground, .playground-editor .cm-focused .cm-selectionBackground { background: var(--vscode-editor-selectionBackground) !important; }
+.playground-editor .cm-content { caret-color: var(--vscode-editorCursor-foreground); color: var(--vscode-editor-foreground); }
+.playground-editor.fallback { white-space: pre; font-family: var(--font-mono); padding: 8px; overflow: auto; }
+.playground-footer { margin-top: 28px; }
+.playground .tok-control { color: var(--tok-control); } .playground .tok-keyword { color: var(--tok-keyword); }
+.playground .tok-function { color: var(--tok-function); } .playground .tok-variable { color: var(--tok-variable); }
+.playground .tok-property { color: var(--tok-property); } .playground .tok-type { color: var(--tok-type); }
+.playground .tok-string { color: var(--tok-string); } .playground .tok-regexp { color: var(--tok-regexp); }
+.playground .tok-escape { color: var(--tok-escape); } .playground .tok-number { color: var(--tok-number); }
+.playground .tok-constant { color: var(--tok-constant); } .playground .tok-comment { color: var(--tok-comment); font-style: italic; }
+.playground .tok-operator { color: var(--tok-operator); } .playground .tok-punctuation { color: var(--tok-punctuation); }
+.playground .tok-tag { color: var(--tok-tag); } .playground .tok-tag-bracket { color: var(--tok-tag-bracket); }
+.playground .tok-attribute { color: var(--tok-attribute); } .playground .tok-heading { color: var(--tok-heading); font-weight: bold; }
+.playground .tok-link { color: var(--tok-link); text-decoration: underline; } .playground .tok-meta { color: var(--tok-meta); }
+.playground .tok-invalid { color: var(--tok-invalid); }
+
+.cheatsheet-header { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 14px; }
+.cheatsheet-header .monaco-button { margin-left: auto; }
+.cheatsheet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 4px 28px; }
+.cheatsheet table { border-collapse: collapse; width: 100%; }
+.cheatsheet td { padding: 3px 0; vertical-align: top; border-bottom: 1px solid var(--vscode-widget-border); }
+.cheatsheet td.keys { width: 42%; font-family: var(--font-mono); font-size: 12px; color: var(--vscode-textPreformat-foreground); padding-right: 10px; white-space: nowrap; }
+.cheatsheet tr.unavailable { opacity: .5; }
+@media print {
+  body, html { position: static !important; overflow: visible !important; }
+  .monaco-workbench > :not(.workbench-body), .activitybar, .sidebar, .auxiliarybar, .part.panel, .part.editor > .title { display: none !important; }
+  .monaco-workbench { position: static !important; height: auto !important; transform: none !important; }
+  .welcome-doc { position: static; overflow: visible; }
+}

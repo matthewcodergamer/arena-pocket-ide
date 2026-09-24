@@ -1,380 +1,78 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark-plus" data-theme-type="dark" class="vs-dark">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,viewport-fit=cover" />
-  <meta name="theme-color" content="#000000" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-visual" />
+  <meta name="theme-color" content="#3c3c3c" />
   <meta name="color-scheme" content="dark light" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="format-detection" content="telephone=no" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="X Coder" />
-  <meta name="description" content="X Coder is a mobile-first browser IDE with local projects, live preview, GitHub sync, and a multi-provider AI coding agent." />
-  <link rel="manifest" href="./manifest.webmanifest" />
-  <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png" />
-  <link rel="icon" href="./icons/icon-192.png" />
-  <link rel="stylesheet" href="./styles.css" />
-  <script src="https://js.puter.com/v2/" defer></script>
+  <meta name="format-detection" content="telephone=no, email=no, address=no" />
+  <meta name="description" content="X Coder — a VS Code–style IDE for iPhone and the browser with local projects, live preview, terminal, GitHub source control and an AI coding agent." />
   <title>X Coder</title>
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" href="./icons/app-icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png" />
+  <script>
+    // Apply the saved color theme before first paint (no flash).
+    (function () {
+      try {
+        var s = JSON.parse(localStorage.getItem('xcoder.settings.v6') || '{}');
+        var light = window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches;
+        var legacy = localStorage.getItem('xcoderTheme');
+        var id = s['workbench.colorTheme'] || (legacy === 'light' ? 'light-plus' : 'dark-plus');
+        if (s['window.autoDetectColorScheme'] || (!s['workbench.colorTheme'] && legacy === 'system')) id = light ? (s['workbench.preferredLightColorTheme'] || 'light-plus') : (s['workbench.preferredDarkColorTheme'] || 'dark-plus');
+        var type = /^light/.test(id) ? 'light' : 'dark';
+        var d = document.documentElement;
+        d.setAttribute('data-theme', id); d.setAttribute('data-theme-type', type);
+        d.className = id === 'hc-black' ? 'hc-black' : type === 'light' ? 'vs' : 'vs-dark';
+      } catch (e) {}
+    })();
+  </script>
+  <link rel="stylesheet" href="./vendor/codicons/codicon.css" />
+  <link rel="stylesheet" href="./css/theme.css" />
+  <link rel="stylesheet" href="./css/workbench.css" />
+  <link rel="stylesheet" href="./css/widgets.css" />
+  <link rel="stylesheet" href="./css/editor.css" />
+  <link rel="stylesheet" href="./css/explorer.css" />
+  <link rel="stylesheet" href="./css/search.css" />
+  <link rel="stylesheet" href="./css/scm.css" />
+  <link rel="stylesheet" href="./css/panel.css" />
+  <link rel="stylesheet" href="./css/preview.css" />
+  <link rel="stylesheet" href="./css/chat.css" />
+  <link rel="stylesheet" href="./css/welcome.css" />
+  <link rel="stylesheet" href="./css/settings.css" />
+  <link rel="stylesheet" href="./css/extensions.css" />
+  <link rel="modulepreload" href="./vendor/codemirror.js" />
+  <script id="puter-js" src="https://js.puter.com/v2/" async></script>
+  <script type="module" src="./src/main.js"></script>
 </head>
 <body>
-  <noscript>This IDE requires JavaScript.</noscript>
+  <noscript>X Coder needs JavaScript.</noscript>
 
-  <div id="bootScreen" class="boot-screen" aria-live="polite">
-    <div class="boot-shell">
-      <div class="boot-top"><div class="boot-brand"><span class="boot-mark">X</span><strong>X Coder</strong></div><div class="boot-mini"></div></div>
-      <div class="boot-body"><div class="boot-rail"></div><div class="boot-main"><div class="boot-line w35"></div><div class="boot-line w70"></div><div class="boot-line w55"></div><div class="boot-code"></div><div class="boot-code short"></div></div></div>
-      <div class="boot-status"><span></span><span></span><span></span></div>
-    </div>
-    <div class="boot-copy"><strong>Opening X Coder</strong><span>Restoring your workspace…</span></div>
+  <div id="boot-screen" class="boot-screen" aria-live="polite" aria-label="Loading X Coder">
+    <div class="boot-letterpress"></div>
+    <div class="boot-progress monaco-progress-container active infinite"><div class="progress-bit"></div></div>
   </div>
 
-  <div id="app" class="app-shell" data-view="editor">
-    <div id="desktopRail" class="desktop-rail" aria-label="Primary tools"></div>
-
-    <aside id="explorerPanel" class="explorer-panel panel-surface" aria-label="Explorer">
-      <header class="pane-header">
-        <button class="icon-btn mobile-only" id="explorerMenuBtn" aria-label="Open project menu" data-icon="menu"></button>
-        <div class="pane-title-wrap explorer-title-wrap">
-          <span class="explorer-title-icon" data-icon="folder"></span><h1 class="pane-title">Explorer</h1>
-          <span id="explorerProjectName" class="pane-subtitle"></span>
-        </div>
-        <div class="header-actions">
-          <button class="icon-btn" id="explorerSearchBtn" aria-label="Search files" data-icon="search"></button>
-          <button class="icon-btn" id="explorerFilterBtn" aria-label="Explorer options" data-icon="sliders"></button>
-          <button class="icon-btn" id="explorerMoreBtn" aria-label="More explorer actions" data-icon="more"></button>
-        </div>
-      </header>
-      <button class="hidden" id="newFileBtn" aria-hidden="true" tabindex="-1"></button>
-      <button class="hidden" id="newFolderBtn" aria-hidden="true" tabindex="-1"></button>
-      <div id="explorerSearchWrap" class="search-strip hidden">
-        <input id="explorerSearchInput" type="search" inputmode="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Search files…" />
-        <button class="icon-btn compact" id="explorerSearchClose" aria-label="Close search" data-icon="close"></button>
+  <div id="workbench" class="monaco-workbench">
+    <header id="titlebar" class="part titlebar" role="banner"></header>
+    <div id="workbench-body" class="workbench-body">
+      <nav id="activitybar" class="part activitybar" role="navigation" aria-label="Activity Bar"></nav>
+      <aside id="sidebar" class="part sidebar" role="complementary" aria-label="Primary Side Bar"></aside>
+      <div id="sash-sidebar" class="sash vertical" role="separator" aria-orientation="vertical"></div>
+      <div id="main-column" class="main-column">
+        <main id="editor-part" class="part editor" aria-label="Editor"></main>
+        <div id="sash-panel" class="sash horizontal" role="separator" aria-orientation="horizontal"></div>
+        <section id="panel" class="part panel" aria-label="Panel"></section>
       </div>
-      <div id="explorerTree" class="explorer-tree scroll-region" role="tree"></div>
-      <footer class="explorer-footer">
-        <button id="projectRootButton" class="footer-root-button">
-          <span class="icon" data-icon="back"></span>
-          <span id="projectRootLabel">Root</span>
-        </button>
-        <button id="copyProjectPathBtn" class="icon-btn" aria-label="Copy project information" data-icon="copy"></button>
-      </footer>
-    </aside>
-
-    <main class="main-stage">
-      <header id="mobileHeader" class="mobile-header pane-header">
-        <button class="icon-btn" id="hamburgerBtn" aria-label="Open menu" data-icon="menu"></button>
-        <div class="pane-title-wrap">
-          <span id="mobileLanguageIcon" class="header-language-icon hidden" aria-hidden="true"></span>
-          <h1 id="mobileTitle" class="pane-title">Editor</h1>
-          <span id="mobileSubtitle" class="pane-subtitle"></span>
-        </div>
-        <button id="networkStatusBtn" class="network-indicator" aria-label="Connection status" title="Connection status"><span data-icon="globe"></span><i></i></button>
-        <div id="mobileHeaderActions" class="header-actions"></div>
-      </header>
-
-      <section id="editorView" class="workspace-view editor-view" aria-label="Editor">
-        <div id="editorEmpty" class="empty-state hidden">
-          <div class="empty-icon" data-icon="code"></div>
-          <h2>No file open</h2>
-          <p>Select a file from Explorer or create a new one.</p>
-          <button id="emptyNewFileBtn" class="primary-btn">New File</button>
-        </div>
-        <div id="editorHost" class="editor-host"></div>
-        <div id="editorAccessory" class="editor-accessory hidden" aria-label="Coding keyboard shortcuts"></div>
-        <div id="saveStatus" class="save-status" aria-live="polite">Saved</div><div id="editorStatusBar" class="editor-status-bar"><span id="statusBranch">main</span><span id="statusProblems">✓ 0</span><span class="status-spacer"></span><span id="statusCursor">Ln 1, Col 1</span><span id="statusLines">Lines 1</span><span id="statusIndent">Spaces: 2</span><span>UTF-8</span><span>LF</span><span id="statusLanguage">Plain Text</span></div>
-      </section>
-
-      <section id="browserView" class="workspace-view browser-view hidden" aria-label="Browser preview">
-        <div class="browser-toolbar">
-          <button class="icon-btn" id="previewBackBtn" aria-label="Back" data-icon="back"></button>
-          <button class="icon-btn" id="previewRefreshBtn" aria-label="Refresh preview" data-icon="refresh"></button>
-          <div class="preview-url" id="previewUrl">project://index.html</div>
-          <button class="icon-btn" id="previewFullscreenBtn" aria-label="Fullscreen preview" data-icon="maximize"></button>
-          <button class="icon-btn" id="previewConsoleBtn" aria-label="Open Web Console" title="Web Console" data-icon="console"></button>
-          <button class="icon-btn" id="previewLogsBtn" aria-label="Captured logs" title="Captured logs" data-icon="list"></button>
-        </div>
-        <div class="preview-stage">
-          <iframe id="previewFrame" title="Project preview" sandbox="allow-scripts allow-forms allow-modals allow-pointer-lock allow-downloads"></iframe>
-        </div>
-        <div id="previewConsoleDrawer" class="console-drawer hidden">
-          <div class="console-drawer-header">
-            <strong>Preview Console</strong>
-            <div class="header-actions">
-              <button id="clearConsoleBtn" class="text-btn">Clear</button>
-              <button id="closeConsoleBtn" class="icon-btn compact" aria-label="Close console" data-icon="close"></button>
-            </div>
-          </div>
-          <div id="previewConsoleList" class="console-list scroll-region"></div>
-        </div>
-      </section>
-
-      <section id="terminalView" class="workspace-view terminal-view hidden" aria-label="Terminal">
-        <div id="terminalOutput" class="terminal-output scroll-region" role="log" aria-live="polite"></div>
-        <form id="terminalForm" class="terminal-input-row">
-          <span id="terminalPrompt" class="terminal-prompt">~/project $</span>
-          <input id="terminalInput" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="text" aria-label="Terminal command" />
-        </form>
-      </section>
-
-      <section id="aiView" class="workspace-view ai-view hidden" aria-label="AI coding agent">
-        <div class="ai-statusbar">
-          <div class="ai-status-copy">
-            <span class="status-dot" id="aiStatusDot"></span>
-            <span id="aiStatusText">X Coder AI offline</span>
-          </div>
-          <select id="aiModelSelect" class="ai-model-select" aria-label="AI model">
-            <option value="auto">Auto Router</option>
-          </select>
-        </div>
-        <div id="aiMessages" class="ai-messages scroll-region"></div>
-        <div id="aiThinking" class="ai-thinking hidden" aria-live="polite">
-          <span class="thinking-orb"><i></i><i></i><i></i></span>
-          <span class="ai-thinking-copy"><strong id="aiThinkingText">Working</strong><small id="aiThinkingDetail">Getting ready…</small></span>
-        </div>
-        <div id="aiProposalPanel" class="ai-proposal-panel hidden"></div>
-        <div class="ai-composer-wrap">
-          <div class="ai-context-row">
-            <button id="aiCurrentFileToggle" class="context-chip active">Current File</button>
-            <button id="aiProjectToggle" class="context-chip active">Project</button>
-            <button id="aiConsoleToggle" class="context-chip">Console</button>
-            <button id="aiUndoBtn" class="context-chip" disabled title="Restore the files from before the last AI edit">Undo</button>
-            <button id="aiRedoBtn" class="context-chip" disabled title="Reapply the AI edit you just undid">Redo</button>
-          </div>
-          <div class="ai-composer">
-            <textarea id="aiInput" rows="1" placeholder="Message X Coder" enterkeyhint="send"></textarea>
-            <button id="aiStopBtn" class="icon-btn hidden" aria-label="Stop agent" data-icon="stop"></button>
-            <button id="aiSendBtn" class="send-btn" aria-label="Send to X Coder AI" data-icon="send"></button>
-          </div>
-        </div>
-      </section>
-
-      <section id="gitView" class="workspace-view git-view hidden" aria-label="GitHub sync">
-        <div class="git-layout scroll-region">
-          <div class="settings-card">
-            <div class="settings-card-title">GitHub Repository</div>
-            <label>Repository
-              <input id="gitRepoInput" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="owner/repository" />
-            </label>
-            <label>Branch
-              <input id="gitBranchInput" autocomplete="off" autocapitalize="off" spellcheck="false" value="main" />
-            </label>
-            <label>Token <span class="muted">(kept in this browser session only)</span>
-              <input id="gitTokenInput" type="password" autocomplete="off" placeholder="github_pat_…" />
-            </label>
-            <div class="button-row">
-              <button id="gitPullBtn" class="secondary-btn">Pull / Import</button>
-              <button id="gitRefreshBtn" class="secondary-btn">Refresh Status</button>
-            </div>
-          </div>
-
-          <div class="settings-card">
-            <div class="settings-card-title row-between"><span>Changes</span><span id="gitChangeCount" class="count-badge">0</span></div>
-            <div id="gitChangesList" class="git-changes"></div>
-          </div>
-
-          <div class="settings-card">
-            <label>Commit message
-              <textarea id="gitCommitInput" rows="2" placeholder="Update project"></textarea>
-            </label>
-            <button id="gitPushBtn" class="primary-btn full-width">Commit & Push</button>
-            <div id="gitStatusMessage" class="inline-status"></div>
-          </div>
-        </div>
-      </section>
-
-
-      <section id="projectsView" class="workspace-view projects-view hidden" aria-label="Projects">
-        <div class="projects-toolbar">
-          <div><strong>Projects</strong><span>Keep each app separate. Switch without mixing files.</span></div>
-          <button id="projectsNewBtn" class="primary-btn">New Project</button>
-        </div>
-        <div class="project-quick-actions">
-          <button id="projectsImportBtn" class="secondary-btn">Import Files</button>
-          <button id="projectsImportZipBtn" class="secondary-btn">Import ZIP</button>
-        </div>
-        <div id="projectsList" class="projects-list scroll-region"></div>
-        <section class="cloud-projects-section">
-          <div class="cloud-title"><strong>X Coder Cloud</strong><span id="xcoderCloudStatus">Not signed in</span></div>
-          <p id="xcoderCloudAccount">Sign in to sync projects across iPhone, Android, and desktop browsers. Powered by Puter.</p>
-          <div class="button-row wrap"><button id="xcoderCloudSignInBtn" class="secondary-btn">Create account / Sign in</button><button id="xcoderCloudSyncBtn" class="primary-btn" disabled>Sync Current Project</button></div>
-          <div id="cloudProjectsList" class="cloud-project-list"></div>
-        </section>
-      </section>
-
-      <section id="tabsView" class="workspace-view tabs-view hidden" aria-label="Open tabs">
-        <div id="tabsList" class="tabs-list scroll-region"></div>
-      </section>
-
-      <section id="settingsView" class="workspace-view settings-view hidden" aria-label="Settings">
-        <div class="settings-scroll scroll-region">
-          <section class="settings-section">
-            <div class="settings-section-heading"><span>Appearance</span><small>Simple, comfortable, and consistent across iPhone and desktop.</small></div>
-            <div class="settings-list">
-              <div class="settings-row settings-row-stack">
-                <div class="settings-row-copy"><strong>Theme</strong><span>System follows your device automatically.</span></div>
-                <div id="themeControl" class="segmented-control" role="radiogroup" aria-label="Appearance">
-                  <button type="button" data-theme-choice="system">System</button>
-                  <button type="button" data-theme-choice="dark">Dark</button>
-                  <button type="button" data-theme-choice="light">Light</button>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section class="settings-section">
-            <div class="settings-section-heading"><span>AI</span><small>Secure multi-provider coding assistant.</small></div>
-            <div class="settings-list">
-              <div class="settings-row settings-row-stack">
-                <div class="settings-row-copy"><strong>AI Router</strong><span>API keys remain encrypted in your Cloudflare Worker.</span></div>
-                <label class="field-label">Secure Worker URL
-                  <input id="arenaProxyInput" autocomplete="url" autocapitalize="off" spellcheck="false" placeholder="https://your-worker.workers.dev" />
-                </label>
-                <div class="button-row wrap">
-                  <button id="arenaTestBtn" class="secondary-btn">Test Providers</button>
-                  <button id="arenaSaveBtn" class="primary-btn">Save</button>
-                </div>
-                <div id="aiProviderList" class="ai-provider-list" aria-live="polite"></div>
-                <details class="settings-details"><summary>Usage details</summary><pre id="aiUsageSummary" class="ai-usage-summary">No AI usage recorded for this project yet.</pre></details>
-              </div>
-              <div class="settings-row settings-row-stack">
-                <div class="settings-row-copy row-between"><strong>X Coder Cloud + Puter AI</strong><span id="puterStatus" class="status-label">Checking…</span></div>
-                <span class="row-description">One Puter account powers X Coder cloud sync and the optional browser AI fallback. Authentication is provided by Puter and may offer Google, Apple, Microsoft, or email depending on Puter's current sign-in screen.</span>
-                <div class="button-row wrap">
-                  <button id="puterSignInBtn" class="secondary-btn">Create account / Sign in</button>
-                  <button id="puterRefreshBtn" class="secondary-btn">Refresh Models</button>
-                </div>
-                <details class="settings-details"><summary>Puter usage</summary><pre id="puterUsageText" class="puter-usage">Usage unavailable</pre></details>
-              </div>
-            </div>
-          </section>
-
-          <section class="settings-section">
-            <div class="settings-section-heading"><span>Editor</span><small>Touch-friendly coding controls without clutter.</small></div>
-            <div class="settings-list">
-              <div class="settings-row settings-row-stack">
-                <label class="field-label">Code color theme
-                  <select id="syntaxThemeSelect" class="settings-select">
-                    <option value="vscode-dark">VS Code Dark+</option>
-                    <option value="vscode-light">VS Code Light+</option>
-                    <option value="github-dark">GitHub Dark</option>
-                    <option value="dracula">Dracula</option>
-                    <option value="xcoder">X Coder</option>
-                  </select>
-                </label>
-                <label class="toggle-row"><span>Programming accessory bar</span><input id="accessoryToggle" type="checkbox" checked /></label>
-                <label class="toggle-row"><span>Word wrap</span><input id="wordWrapToggle" type="checkbox" /></label>
-                <label class="range-label"><span>Font size</span><input id="fontSizeRange" type="range" min="12" max="20" step="1" value="14" /></label>
-              </div>
-            </div>
-          </section>
-
-          <section class="settings-section">
-            <div class="settings-section-heading"><span>Project</span><small>Import, export, and protect your local work.</small></div>
-            <div class="settings-list">
-              <div class="settings-row settings-row-stack">
-                <div class="button-grid">
-                  <button id="importFilesBtn" class="secondary-btn">Import Files</button>
-                  <button id="importZipBtn" class="secondary-btn">Import ZIP</button>
-                  <button id="exportZipBtn" class="secondary-btn">Export ZIP</button>
-                  <button id="newProjectBtn" class="secondary-btn">New Project</button>
-                  <button id="openProjectsBtn" class="secondary-btn">Manage Projects</button>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section class="settings-section">
-            <div class="settings-section-heading"><span>Advanced</span><small>Diagnostics and destructive actions.</small></div>
-            <div class="settings-list">
-              <div class="settings-row settings-row-stack diagnostics-card">
-                <div class="settings-row-copy"><strong>Diagnostics</strong><span>Copy useful device and runtime information when debugging.</span></div>
-                <pre id="diagnosticsText"></pre>
-                <button id="copyDiagnosticsBtn" class="secondary-btn">Copy Diagnostics</button>
-              </div>
-              <div class="settings-row settings-row-stack danger-row">
-                <div class="settings-row-copy"><strong>Reset Current Project</strong><span>This replaces the current local project with a fresh starter.</span></div>
-                <button id="resetProjectBtn" class="danger-btn">Reset Project</button>
-              </div>
-            </div>
-          </section>
-        </div>
-      </section>
-
-      <section id="extensionsView" class="workspace-view extensions-view hidden" aria-label="Add-ons">
-        <div class="extensions-shell scroll-region">
-          <div class="extensions-hero"><div><h2>Add-ons</h2><p>Small, browser-safe features that extend X Coder without making the editor heavy.</p></div><span data-icon="plus"></span></div>
-          <div class="extension-row"><div class="extension-icon emmet-mark">E</div><div class="extension-copy"><strong>Emmet</strong><span>Fast HTML abbreviation expansion. Built into VS Code; lightweight implementation for X Coder.</span></div><label class="switch"><input id="emmetToggle" type="checkbox"><i></i></label></div>
-          <div class="extension-row"><div class="extension-icon">&lt;/&gt;</div><div class="extension-copy"><strong>Auto-close tags</strong><span>Keeps HTML authoring fast on touch keyboards.</span></div><label class="switch"><input id="autoCloseTagsToggle" type="checkbox"><i></i></label></div>
-          <div class="extension-note">Add-on settings are stored per project. This is a lightweight extension layer, not a fake VS Code Marketplace.</div>
-        </div>
-      </section>
-
-      <nav id="mobileNav" class="mobile-nav" aria-label="Primary navigation"></nav>
-    </main>
-
-
-    <section id="unifiedConsolePanel" class="unified-console-panel hidden" aria-label="X Coder Console">
-      <header class="unified-console-header">
-        <div class="console-title"><strong>Console</strong><span>Preview · IDE · AI · Cloud</span></div>
-        <select id="consoleLevelFilter" aria-label="Console level"><option value="all">All</option><option value="error">Errors</option><option value="warn">Warnings</option><option value="info">Info</option><option value="log">Logs</option></select>
-        <button id="unifiedConsoleClear" class="text-btn">Clear</button>
-        <button id="unifiedConsoleClose" class="icon-btn compact" aria-label="Close Console" data-icon="close"></button>
-      </header>
-      <div id="unifiedConsoleList" class="unified-console-list scroll-region"></div>
-    </section>
-
-    <aside id="desktopUtility" class="desktop-utility panel-surface hidden" aria-label="Utility panel"></aside>
+      <div id="sash-aux" class="sash vertical" role="separator" aria-orientation="vertical"></div>
+      <aside id="auxiliarybar" class="part auxiliarybar" role="complementary" aria-label="Secondary Side Bar"></aside>
+      <div id="overlay-backdrop" class="overlay-backdrop"></div>
+    </div>
+    <footer id="statusbar" class="part statusbar" role="status" aria-label="Status Bar"></footer>
   </div>
-
-  <div id="drawerBackdrop" class="backdrop hidden"></div>
-  <aside id="appDrawer" class="app-drawer hidden" aria-label="Project menu">
-    <div class="drawer-header">
-      <div>
-        <div class="drawer-brand"><span class="xcoder-mark">X</span><div><strong>X Coder</strong><div id="drawerProjectName" class="drawer-project-name">Project</div></div></div>
-        <div class="muted" id="drawerProjectMeta"></div>
-      </div>
-      <button id="drawerCloseBtn" class="icon-btn" aria-label="Close menu" data-icon="close"></button>
-    </div>
-    <div class="drawer-list">
-      <button data-drawer-action="explorer"><span data-icon="folder"></span>Explorer</button>
-      <button data-drawer-action="projects"><span data-icon="projects"></span>Projects</button>
-      <button data-drawer-action="extensions"><span data-icon="plus"></span>Add-ons</button>
-      <button data-drawer-action="settings"><span data-icon="settings"></span>Settings</button>
-      <button data-drawer-action="diagnostics"><span data-icon="info"></span>Diagnostics</button>
-    </div>
-  </aside>
-
-  <dialog id="textPromptDialog" class="modal-dialog">
-    <form method="dialog" id="textPromptForm" class="modal-card">
-      <h2 id="textPromptTitle">New File</h2>
-      <input id="textPromptInput" autocomplete="off" autocapitalize="off" spellcheck="false" />
-      <div id="textPromptError" class="form-error"></div>
-      <div class="modal-actions">
-        <button value="cancel" class="text-btn">Cancel</button>
-        <button id="textPromptSubmit" value="default" class="primary-btn">Create</button>
-      </div>
-    </form>
-  </dialog>
-
-  <dialog id="confirmDialog" class="modal-dialog">
-    <form method="dialog" class="modal-card">
-      <h2 id="confirmTitle">Confirm</h2>
-      <p id="confirmText"></p>
-      <div class="modal-actions">
-        <button value="cancel" class="text-btn">Cancel</button>
-        <button id="confirmOk" value="default" class="danger-btn">Continue</button>
-      </div>
-    </form>
-  </dialog>
-
-  <div id="contextMenu" class="context-menu hidden" role="menu"></div>
-  <div id="toastHost" class="toast-host" aria-live="polite"></div>
-
-  <input id="filePicker" class="hidden" type="file" multiple />
-  <input id="zipPicker" class="hidden" type="file" accept=".zip,application/zip" />
-
-  <script type="module" src="./app.js"></script>
 </body>
 </html>

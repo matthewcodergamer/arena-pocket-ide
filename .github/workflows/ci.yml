@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches-ignore: ["gh-pages"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dev tooling
+        run: npm ci
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+      - name: Static checks
+        run: node tools/check.mjs
+      - name: Worker unit tests
+        run: node --test worker/test/
+      - name: Browser tests (iPhone + desktop emulation)
+        run: node tools/test/run.mjs
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: tools/test/out/
+          if-no-files-found: ignore

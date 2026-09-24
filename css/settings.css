@@ -1,0 +1,221 @@
+/* Settings editor · settings.json editor · Keyboard Shortcuts editor
+ * Metrics follow VS Code's settingsEditor2.css / keybindingsEditor.css. Colors come only from theme tokens. */
+
+.settings-editor-container, .keybindings-editor-container { background: var(--vscode-editor-background); }
+
+/* ---------------- Settings (UI) ---------------- */
+.settings-editor {
+  display: flex; flex-direction: column; height: 100%; min-height: 0;
+  max-width: 1200px; width: 100%; margin: 0 auto; padding-top: 11px;
+  color: var(--vscode-foreground);
+}
+.settings-header { flex: none; padding: 0 24px; max-width: 1000px; width: 100%; box-sizing: border-box; margin: 0 auto; }
+.settings-search-container, .keybindings-search-container {
+  position: relative; display: flex; align-items: center; height: 30px; gap: 2px;
+  background: var(--vscode-input-background); border: 1px solid var(--vscode-input-border, transparent);
+  border-radius: 2px;
+}
+.settings-search-container:focus-within, .keybindings-search-container:focus-within { border-color: var(--vscode-focusBorder); }
+.settings-search-icon { flex: none; width: 26px; display: flex; justify-content: center; color: var(--vscode-input-placeholderForeground); }
+.settings-search-icon .codicon { font-size: 14px; }
+.settings-search-container > input, .keybindings-search-container > input {
+  flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; padding: 0 4px 0 0;
+  color: var(--vscode-input-foreground); font: inherit; font-size: 14px;
+}
+.settings-search-container > input::placeholder, .keybindings-search-container > input::placeholder { color: var(--vscode-input-placeholderForeground); }
+.settings-count-widget {
+  flex: none; margin-right: 4px; padding: 2px 8px; border-radius: 2px; white-space: nowrap;
+  font-size: 11px; line-height: 16px;
+  background: var(--vscode-badge-background); color: var(--vscode-badge-foreground);
+}
+.settings-count-widget.hidden { display: none; }
+.settings-search-container .controls, .keybindings-search-container .controls { flex: none; display: flex; padding-right: 3px; }
+
+.settings-header-controls {
+  display: flex; align-items: flex-end; height: 32px; margin-top: 4px;
+  border-bottom: 1px solid var(--vscode-panel-border, var(--vscode-widget-border));
+}
+.settings-tabs-widget { display: flex; gap: 20px; height: 100%; }
+.settings-tab {
+  display: flex; align-items: center; height: 100%; padding: 0 2px; cursor: pointer; font-size: 13px;
+  color: var(--vscode-panelTitle-inactiveForeground); border-bottom: 1px solid transparent; margin-bottom: -1px;
+}
+.settings-tab.active { color: var(--vscode-panelTitle-activeForeground); border-bottom-color: var(--vscode-panelTitle-activeBorder); }
+.settings-tab:focus-visible { outline: 1px solid var(--vscode-focusBorder); outline-offset: -1px; }
+
+.settings-toc-chips { display: none; }
+.settings-body { flex: 1; min-height: 0; display: flex; margin-top: 12px; max-width: 1000px; width: 100%; margin-left: auto; margin-right: auto; }
+
+/* table of contents */
+.settings-toc-container {
+  flex: none; width: 190px; overflow-y: auto; overflow-x: hidden; padding: 0 0 12px 16px;
+  overscroll-behavior: contain;
+}
+.settings-toc-entry { gap: 2px; padding: 0 6px 0 0; font-size: 13px; color: var(--vscode-foreground); opacity: .9; }
+.settings-toc-entry.level-2 { padding-left: 16px; }
+.settings-toc-entry .settings-toc-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.settings-toc-entry .settings-toc-count { margin-left: 4px; color: var(--vscode-descriptionForeground); }
+.settings-toc-entry.selected, .settings-toc-entry.filtered {
+  background: transparent; color: var(--vscode-settings-headerForeground); font-weight: 600; opacity: 1;
+}
+.settings-toc-entry:hover { background: var(--vscode-list-hoverBackground); }
+.settings-toc-entry:focus-visible { outline: 1px solid var(--vscode-focusBorder); outline-offset: -1px; }
+
+/* settings list */
+.settings-tree-container {
+  flex: 1; min-width: 0; position: relative; overflow-y: auto; overflow-x: hidden;
+  padding: 0 24px 40px 30px; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+}
+.settings-group-title { padding-top: 22px; padding-bottom: 4px; }
+.settings-group-title:first-child { padding-top: 4px; }
+.settings-group-title-label { margin: 0; font-weight: 600; color: var(--vscode-settings-headerForeground); overflow-wrap: anywhere; }
+.settings-group-level-1 .settings-group-title-label { font-size: 24px; line-height: 32px; }
+.settings-group-level-2 { padding-top: 28px; }
+.settings-group-level-2 .settings-group-title-label { font-size: 20px; line-height: 26px; }
+
+.setting-item {
+  position: relative; padding: 12px 14px 18px; border-radius: 0;
+  font-size: 13px; line-height: 18px; outline: none;
+}
+.setting-item:hover { background: var(--vscode-settings-rowHoverBackground); }
+.setting-item.focused { background: var(--vscode-settings-focusedRowBackground); }
+.setting-item-modified-indicator { display: none; position: absolute; left: 5px; top: 15px; bottom: 16px; width: 0; border-left: 2px solid var(--vscode-settings-modifiedItemIndicator); }
+.setting-item.is-configured .setting-item-modified-indicator { display: block; }
+.setting-toolbar-container {
+  position: absolute; left: -26px; top: 10px; width: 24px; height: 24px;
+  display: flex; align-items: center; justify-content: center; visibility: hidden;
+}
+.setting-item:hover .setting-toolbar-container, .setting-item.focused .setting-toolbar-container,
+.setting-toolbar-container:focus-within { visibility: visible; }
+@media (hover: none) { .setting-toolbar-container { visibility: visible; opacity: .8; } }
+.setting-toolbar-container .action-label { width: 22px; height: 22px; }
+
+.setting-item-title { font-weight: 400; overflow-wrap: anywhere; user-select: text; -webkit-user-select: text; }
+.setting-item-category { color: var(--vscode-foreground); opacity: .9; }
+.setting-item-label { font-weight: 600; color: var(--vscode-settings-headerForeground); }
+.setting-item-description {
+  margin-top: 2px; color: var(--vscode-foreground); opacity: .9; overflow-wrap: anywhere;
+  user-select: text; -webkit-user-select: text;
+}
+.setting-item-description code {
+  font-family: var(--font-mono); font-size: 12px; padding: 1px 3px; border-radius: 3px;
+  color: var(--vscode-textPreformat-foreground); background: var(--vscode-textPreformat-background);
+}
+.setting-item-description a, .edit-in-settings-button, .settings-clear-link { color: var(--vscode-textLink-foreground); text-decoration: none; cursor: pointer; }
+.setting-item-description a:hover, .edit-in-settings-button:hover, .settings-clear-link:hover { text-decoration: underline; color: var(--vscode-textLink-activeForeground); }
+.setting-item-control { margin-top: 9px; }
+.setting-item-control .xc-input, .setting-item-control .xc-select, .setting-item-control .xc-textarea { font-size: 13px; }
+.setting-item-number .setting-item-control .xc-input { width: 200px; max-width: 100%; }
+.setting-item-string .setting-item-control .xc-input { width: 100%; max-width: 500px; }
+.setting-item-text .setting-item-control .xc-textarea { width: 100%; max-width: 500px; min-height: 76px; resize: vertical; font-family: var(--font-mono); }
+.setting-item-enum .setting-item-control .xc-select { min-width: 200px; max-width: 320px; width: auto; }
+.setting-item-enum-description { margin-top: 6px; font-size: 12px; color: var(--vscode-descriptionForeground); }
+.setting-item-enum-description:empty { display: none; }
+.setting-item-bool { display: flex; align-items: flex-start; gap: 9px; margin-top: 4px; cursor: pointer; }
+.setting-item-bool .xc-checkbox { margin-top: 0; }
+.setting-item-bool .setting-item-description { margin-top: 0; }
+.setting-item-validation-message {
+  margin-top: 0; max-width: 500px; padding: 4px 6px; font-size: 12px; line-height: 17px;
+  background: var(--vscode-inputValidation-errorBackground); border: 1px solid var(--vscode-inputValidation-errorBorder);
+  color: var(--vscode-foreground);
+}
+.setting-item-validation-message.hidden { display: none; }
+.setting-item-control .xc-input.error { border-color: var(--vscode-inputValidation-errorBorder); }
+.settings-no-results { padding: 16px 14px; color: var(--vscode-descriptionForeground); }
+
+/* narrow editors (phones): no TOC, horizontal category chips instead */
+.settings-editor.narrow { padding-top: 8px; }
+.settings-editor.narrow .settings-header { padding: 0 12px; }
+.settings-editor.narrow .settings-toc-container { display: none; }
+.settings-editor.narrow .settings-body { margin-top: 0; }
+.settings-editor.narrow .settings-tree-container { padding: 0 10px 40px 28px; }
+.settings-editor.narrow .settings-toc-chips {
+  display: flex; gap: 6px; overflow-x: auto; overflow-y: hidden; padding: 8px 0 8px;
+  scrollbar-width: none; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain;
+}
+.settings-editor.narrow .settings-toc-chips::-webkit-scrollbar { display: none; }
+.settings-toc-chip {
+  flex: none; display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px;
+  border-radius: 13px; border: 1px solid var(--vscode-input-border, var(--vscode-widget-border));
+  background: transparent; color: var(--vscode-foreground); font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap;
+}
+.settings-toc-chip .settings-toc-count { font-size: 11px; opacity: .8; }
+.settings-toc-chip.active { background: var(--vscode-button-background); color: var(--vscode-button-foreground); border-color: var(--vscode-button-background); }
+.settings-toc-chip:focus-visible { outline: 1px solid var(--vscode-focusBorder); outline-offset: 1px; }
+@media (pointer: coarse) { .settings-toc-chip { height: 30px; padding: 0 12px; border-radius: 15px; } }
+.settings-editor.narrow .settings-group-level-1 .settings-group-title-label { font-size: 20px; line-height: 26px; }
+.settings-editor.narrow .settings-group-level-2 { padding-top: 20px; }
+.settings-editor.narrow .settings-group-level-2 .settings-group-title-label { font-size: 16px; line-height: 22px; }
+.settings-editor.narrow .settings-group-title { padding-left: 2px; }
+.settings-editor.narrow .setting-item { padding: 10px 8px 14px 12px; }
+.settings-editor.narrow .setting-item-number .setting-item-control .xc-input,
+.settings-editor.narrow .setting-item-enum .setting-item-control .xc-select { width: 100%; max-width: 260px; min-width: 0; }
+.settings-editor.narrow .setting-toolbar-container { left: -27px; top: 8px; }
+@media (pointer: coarse) {
+  .setting-toolbar-container { width: 30px; height: 30px; }
+  .setting-toolbar-container .action-label { width: 28px; height: 28px; }
+  .settings-editor.narrow .setting-toolbar-container { left: -29px; top: 5px; }
+  .setting-item-bool .xc-checkbox { width: 22px; height: 22px; }
+  .settings-search-container, .keybindings-search-container { height: 34px; }
+  .settings-search-container > input, .keybindings-search-container > input { font-size: 16px; } /* no iOS zoom on focus */
+  .setting-item-control .xc-input, .setting-item-control .xc-select, .setting-item-control .xc-textarea { font-size: 16px; }
+}
+
+/* ---------------- settings.json ---------------- */
+.settings-json-container { display: flex; flex-direction: column; }
+.settings-json-editor { flex: 1; min-height: 0; position: relative; }
+.settings-json-editor .cm-editor { height: 100%; outline: none; }
+.settings-json-editor .cm-editor.cm-focused { outline: none; }
+.settings-json-banner {
+  flex: none; padding: 6px 12px; font-size: 12px; line-height: 18px; user-select: text; -webkit-user-select: text;
+  background: var(--vscode-inputValidation-errorBackground); border-bottom: 1px solid var(--vscode-inputValidation-errorBorder);
+  color: var(--vscode-foreground);
+}
+.settings-json-banner.hidden { display: none; }
+
+/* ---------------- Keyboard Shortcuts ---------------- */
+.keybindings-editor { display: flex; flex-direction: column; height: 100%; min-height: 0; padding: 11px 0 0; max-width: 1400px; margin: 0 auto; width: 100%; }
+.keybindings-header { flex: none; display: flex; flex-direction: column; gap: 6px; padding: 0 24px; }
+.keybindings-header-actions { display: flex; justify-content: flex-end; }
+.keybindings-count { font-size: 12px; color: var(--vscode-descriptionForeground); }
+.keybindings-search-container .action-label.checked { background: var(--vscode-inputOption-activeBackground); outline: 1px solid var(--vscode-inputOption-activeBorder); outline-offset: -1px; }
+.keybindings-notice {
+  flex: none; display: flex; gap: 8px; align-items: flex-start; margin: 8px 24px 6px; padding: 6px 10px;
+  font-size: 12px; line-height: 17px; color: var(--vscode-foreground);
+  background: var(--vscode-inputValidation-infoBackground); border: 1px solid var(--vscode-inputValidation-infoBorder); border-radius: 2px;
+}
+.keybindings-notice .codicon { flex: none; margin-top: 1px; color: var(--vscode-notificationsInfoIcon-foreground); }
+.keybindings-table { flex: 1; min-height: 0; display: flex; flex-direction: column; margin-top: 4px; }
+.keybindings-table-header, .keybindings-row {
+  display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, .6fr);
+  align-items: center; column-gap: 10px; padding: 0 24px;
+}
+.keybindings-table-header {
+  flex: none; height: 30px; font-weight: 600; font-size: 13px;
+  border-bottom: 1px solid var(--vscode-panel-border, var(--vscode-widget-border));
+}
+.keybindings-table-header .keybindings-cell { display: flex; align-items: center; gap: 4px; cursor: pointer; white-space: nowrap; overflow: hidden; }
+.keybindings-table-header .keybindings-cell .codicon { font-size: 12px; }
+.keybindings-table-rows { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.keybindings-row { min-height: 24px; padding-top: 3px; padding-bottom: 3px; font-size: 13px; cursor: default; }
+.keybindings-row:nth-child(odd) { background: var(--vscode-editorGroupHeader-tabsBackground); }
+.keybindings-row:hover { background: var(--vscode-list-hoverBackground); }
+.keybindings-row.selected { background: var(--vscode-list-inactiveSelectionBackground); color: var(--vscode-list-inactiveSelectionForeground); }
+.keybindings-row.disabled-command .command-title { opacity: .7; }
+.keybindings-cell { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.keybindings-row .col-command .command-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.keybindings-row .col-command .command-id { display: none; font-size: 11px; color: var(--vscode-descriptionForeground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.keybindings-row .col-command .command-id.highlight-id { display: block; color: var(--vscode-list-highlightForeground); }
+.keybindings-row .col-when, .keybindings-row .col-source { color: var(--vscode-descriptionForeground); white-space: nowrap; }
+.keybindings-row .monaco-keybinding { margin-left: 0; }
+.keybindings-no-results { padding: 16px 24px; color: var(--vscode-descriptionForeground); }
+
+/* phones: two-line rows (command + id), keybinding on the right; When/Source hidden */
+.phone .keybindings-header, .phone .keybindings-table-header, .phone .keybindings-row { padding-left: 12px; padding-right: 12px; }
+.phone .keybindings-notice { margin-left: 12px; margin-right: 12px; }
+.phone .keybindings-table-header, .phone .keybindings-row { grid-template-columns: minmax(0, 1fr) auto; }
+.phone .keybindings-table-header .col-when, .phone .keybindings-table-header .col-source,
+.phone .keybindings-row .col-when, .phone .keybindings-row .col-source { display: none; }
+.phone .keybindings-row { min-height: 44px; }
+.phone .keybindings-row .col-command .command-id { display: block; }
+@media (pointer: coarse) { .keybindings-row { min-height: 36px; } }

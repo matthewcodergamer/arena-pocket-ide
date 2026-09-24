@@ -1,39 +1,20 @@
 {
   "name": "X Coder",
   "short_name": "X Coder",
-  "description": "X Coder — a mobile-first browser IDE with projects, live preview, GitHub sync, AI coding tools, and voice.",
+  "description": "A VS Code–style IDE for iPhone and the browser: projects, editor, live preview, terminal, GitHub source control and an AI coding agent with vision and voice.",
+  "id": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "display_override": ["fullscreen", "standalone"],
-  "background_color": "#09090b",
-  "theme_color": "#09090b",
+  "display_override": ["window-controls-overlay", "standalone"],
   "orientation": "any",
+  "background_color": "#1e1e1e",
+  "theme_color": "#333333",
+  "categories": ["developer", "productivity", "utilities"],
   "icons": [
-    {
-      "src": "./icons/app-icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any"
-    },
-    {
-      "src": "./icons/app-icon-512.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "maskable"
-    },
-    {
-      "src": "./icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "./icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
-  ],
-  "id": "./"
+    { "src": "./icons/app-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "./icons/app-icon-512.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" },
+    { "src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
 }

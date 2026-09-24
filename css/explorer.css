@@ -1,0 +1,113 @@
+/* Explorer: Folders tree (VS Code workbench.explorer.fileView), Open Editors, inline inputs. Colors come from theme tokens only. */
+
+/* ---------------- shared virtual list ---------------- */
+.xc-vlist { position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; outline: none; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+.xc-vlist > .monaco-list-rows { position: relative; width: 100%; min-height: 100%; }
+.xc-vlist .monaco-list-row { position: absolute; left: 0; right: 0; }
+.xc-vlist:focus-visible { outline: none; }
+.xc-vlist:focus { outline: 1px solid var(--vscode-focusBorder); outline-offset: -1px; }
+.phone .xc-vlist:focus, .xc-vlist:focus:not(:focus-visible) { outline: none; }
+
+/* ---------------- folders view ---------------- */
+.explorer-folders-view { position: absolute; inset: 0; display: flex; flex-direction: column; }
+.explorer-folders-view > .explorer-tree { flex: 1; }
+.explorer-row {
+  padding-right: 0; font-size: 13px;
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: manipulation;
+}
+.explorer-row .monaco-tl-twistie { width: 16px; flex: none; box-sizing: content-box; justify-content: center; color: var(--vscode-icon-foreground); }
+.explorer-row .monaco-tl-twistie.collapsible::before { font-size: 16px; }
+.explorer-row .monaco-tl-contents { flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; }
+.explorer-item { flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; }
+.explorer-item.folder-icon { padding-left: 2px; }
+.explorer-file-icon { width: 16px; height: 100%; flex: none; display: inline-flex; align-items: center; justify-content: center; margin-right: 6px; }
+.explorer-file-icon .file-icon { width: 16px; height: 16px; }
+.explorer-item .monaco-icon-label-container { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.explorer-item .label-name { white-space: nowrap; }
+.explorer-item .label-separator { padding: 0 2px; opacity: .8; }
+.explorer-item .label-segment.selected-segment { text-decoration: underline; text-underline-offset: 3px; }
+.explorer-row.cut { opacity: .5; }
+
+/* decorations (git + problems) */
+.explorer-item.deco-modified .label-name { color: var(--vscode-gitDecoration-modifiedResourceForeground); }
+.explorer-item.deco-untracked .label-name { color: var(--vscode-gitDecoration-untrackedResourceForeground); }
+.explorer-item.deco-deleted .label-name { color: var(--vscode-gitDecoration-deletedResourceForeground); text-decoration: line-through; }
+.explorer-item.deco-warning .label-name { color: var(--vscode-list-warningForeground); }
+.explorer-item.deco-error .label-name { color: var(--vscode-list-errorForeground); }
+.explorer-decorations { flex: none; display: flex; align-items: center; gap: 4px; margin: 0 12px 0 5px; }
+.decoration-badge { font-size: 90%; font-weight: 600; opacity: .75; min-width: 8px; text-align: center; line-height: 1; }
+.decoration-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .75; }
+.deco-modified { color: var(--vscode-gitDecoration-modifiedResourceForeground); }
+.deco-untracked { color: var(--vscode-gitDecoration-untrackedResourceForeground); }
+.deco-deleted { color: var(--vscode-gitDecoration-deletedResourceForeground); }
+.deco-warning { color: var(--vscode-list-warningForeground); }
+.deco-error { color: var(--vscode-list-errorForeground); }
+/* like VS Code: in the focused tree the selected row's decorations take the selection foreground */
+.explorer-tree:focus-within .explorer-row.selected .explorer-item[class*="deco-"] .label-name,
+.explorer-tree:focus-within .explorer-row.selected .explorer-decorations > * { color: var(--vscode-list-activeSelectionForeground, inherit); }
+.explorer-tree:focus-within .explorer-row.selected .decoration-dot { background: currentColor; }
+
+/* indent guides */
+.monaco-tl-indent { position: absolute; top: 0; left: 16px; height: 100%; pointer-events: none; display: flex; }
+.monaco-tl-indent > .indent-guide { flex: none; height: 100%; box-sizing: border-box; border-left: 1px solid transparent; transition: border-color .1s linear; }
+.explorer-folders-view[data-guides="always"] .indent-guide { border-color: color-mix(in srgb, var(--vscode-tree-indentGuidesStroke) 40%, transparent); }
+.explorer-folders-view[data-guides="onHover"] .explorer-tree:hover .indent-guide,
+.explorer-folders-view[data-guides="onHover"] .explorer-tree:focus-within .indent-guide { border-color: color-mix(in srgb, var(--vscode-tree-indentGuidesStroke) 40%, transparent); }
+.explorer-folders-view:not([data-guides="none"]) .indent-guide.active { border-color: var(--vscode-tree-indentGuidesStroke); }
+@supports not (color: color-mix(in srgb, red 50%, blue)) {
+  .explorer-folders-view[data-guides="always"] .indent-guide,
+  .explorer-folders-view[data-guides="onHover"] .explorer-tree:hover .indent-guide { border-color: var(--vscode-tree-indentGuidesStroke); opacity: .5; }
+}
+
+/* drag & drop */
+.explorer-row.drop-target, .explorer-tree.drop-target-root { background-color: var(--vscode-list-dropBackground); }
+.explorer-drag-image, .monaco-drag-image {
+  position: fixed; top: -1000px; left: -1000px; padding: 1px 7px; border-radius: 10px; font-size: 12px;
+  background: var(--vscode-list-activeSelectionBackground); color: var(--vscode-list-activeSelectionForeground);
+}
+
+/* inline rename / new file input */
+.explorer-row.editing { overflow: visible; z-index: 5; cursor: default; background: transparent !important; outline: none !important; }
+.explorer-row.editing .explorer-item { overflow: visible; }
+.explorer-inputbox { flex: 1; min-width: 0; height: calc(var(--row-height) - 2px); margin-right: 4px; border-color: var(--vscode-focusBorder); }
+.explorer-inputbox > input { height: 100%; padding: 0 4px !important; font-size: 13px; }
+@media (pointer: coarse) { .explorer-inputbox > input { font-size: 16px; } } /* 16px stops iOS from zooming in */
+.explorer-inputbox.error { border-color: var(--vscode-inputValidation-errorBorder); outline-color: var(--vscode-inputValidation-errorBorder) !important; }
+.explorer-inputbox.warning { border-color: var(--vscode-inputValidation-warningBorder); outline-color: var(--vscode-inputValidation-warningBorder) !important; }
+.explorer-inputbox.shake { animation: xc-shake .3s; }
+.explorer-row .monaco-inputbox-message, .search-view .monaco-inputbox-message {
+  position: absolute; left: 0; right: 4px; top: 100%; z-index: 6;
+  padding: .4em; font-size: 12px; line-height: 17px; white-space: normal; overflow-wrap: anywhere;
+  border: 1px solid var(--vscode-inputValidation-infoBorder); background: var(--vscode-inputValidation-infoBackground);
+  color: var(--vscode-foreground); cursor: default;
+}
+.explorer-row .monaco-inputbox-message.error, .search-view .monaco-inputbox-message.error { border-color: var(--vscode-inputValidation-errorBorder); background: var(--vscode-inputValidation-errorBackground); }
+.explorer-row .monaco-inputbox-message.warning, .search-view .monaco-inputbox-message.warning { border-color: var(--vscode-inputValidation-warningBorder); background: var(--vscode-inputValidation-warningBackground); }
+.explorer-row.editing .monaco-inputbox-message { margin-top: -1px; }
+
+/* empty folder state */
+.explorer-empty { padding: 8px 20px 12px; }
+.explorer-empty p { margin: 4px 0 12px; }
+
+/* ---------------- open editors ---------------- */
+.open-editors-list { outline: none; padding-bottom: 2px; }
+.open-editor { padding-left: 4px; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
+.open-editor .open-editor-actions { width: 22px; flex: none; display: flex; align-items: center; justify-content: center; position: relative; margin-right: 2px; }
+.open-editor .open-editor-actions .action-label { visibility: hidden; width: 20px; height: 20px; font-size: 14px; }
+.open-editor .dirty-indicator { position: absolute; font-size: 10px; display: none; color: var(--vscode-icon-foreground); pointer-events: none; }
+.open-editor.dirty .dirty-indicator { display: block; }
+.open-editor.selected .open-editor-actions .action-label,
+.open-editor:hover .open-editor-actions .action-label { visibility: visible; }
+.open-editor.dirty:not(:hover) .open-editor-actions .action-label { visibility: hidden; }
+.open-editor.dirty:hover .dirty-indicator { display: none; }
+@media (hover: none) {
+  .open-editor .open-editor-actions { width: 30px; }
+  .open-editor .open-editor-actions .action-label { visibility: visible; width: 28px; height: 28px; }
+  .open-editor.dirty .open-editor-actions .action-label { visibility: hidden; }
+}
+.open-editor .monaco-icon-label { flex: 1; min-width: 0; }
+.open-editor .monaco-icon-label .label-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: none; max-width: 70%; }
+.open-editor .monaco-icon-label .label-description { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: .9em; opacity: .7; margin-left: .5em; }
+.open-editor.preview .label-name { font-style: italic; }
+.open-editors-list .monaco-list-row.focused { outline: 1px solid var(--vscode-list-focusOutline); outline-offset: -1px; }
+.open-editors-list:focus-within .monaco-list-row.selected { background: var(--vscode-list-activeSelectionBackground); color: var(--vscode-list-activeSelectionForeground); }

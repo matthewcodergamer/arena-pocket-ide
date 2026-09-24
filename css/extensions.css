@@ -1,0 +1,157 @@
+/* Extensions view · extension editor · release notes / markdown documents.
+ * Metrics follow VS Code's extensionsViewlet.css and extensionEditor.css. Colors come only from theme tokens. */
+
+/* ---------------- Extensions view ---------------- */
+.extensions-viewlet { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.extensions-search-container { flex: none; padding: 3px 12px 9px 20px; }
+.extensions-search-box { height: 26px; border: 1px solid var(--vscode-input-border, transparent); background: var(--vscode-input-background); }
+.extensions-search-box:focus-within { border-color: var(--vscode-focusBorder); }
+.extensions-search-box > input { height: 100%; border: 0; outline: 0; background: transparent; color: var(--vscode-input-foreground); font: inherit; font-size: 13px; padding: 0 6px; width: 100%; }
+.extensions-search-box > input::placeholder { color: var(--vscode-input-placeholderForeground); }
+@media (pointer: coarse) {
+  .extensions-search-container { padding-left: 16px; }
+  .extensions-search-box { height: 32px; }
+  .extensions-search-box > input { font-size: 16px; }
+}
+.extensions-sections { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.extensions-section + .extensions-section { border-top: 1px solid var(--vscode-sideBarSectionHeader-border); }
+.extensions-section-header { position: sticky; top: 0; z-index: 1; }
+.extensions-section-header .monaco-count-badge { margin-left: auto; }
+.extensions-list.hidden { display: none; }
+.extensions-empty { color: var(--vscode-descriptionForeground); }
+
+.extension-list-item {
+  display: flex; align-items: center; height: 72px; padding: 0 0 0 16px; gap: 0;
+  overflow: hidden; cursor: pointer; outline: none;
+}
+.extension-list-item:focus-visible { outline: 1px solid var(--vscode-list-focusOutline, var(--vscode-focusBorder)); outline-offset: -1px; }
+.extension-list-item.disabled .extension-icon-tile, .extension-list-item.disabled .details > :not(.footer),
+.extension-list-item.disabled .author { opacity: .6; }
+.extension-list-item > .extension-icon-tile { margin-right: 14px; }
+.extension-list-item .details { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; padding: 4px 0; overflow: hidden; }
+.extension-list-item .header-container { height: 20px; line-height: 20px; display: flex; overflow: hidden; padding-right: 11px; }
+.extension-list-item .header { display: flex; align-items: baseline; flex-wrap: nowrap; overflow: hidden; min-width: 0; gap: 6px; }
+.extension-list-item .name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.extension-builtin-label { flex: none; font-size: 10px; font-style: italic; color: var(--vscode-descriptionForeground); }
+.extension-list-item .description { padding-right: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 18px; }
+.extension-list-item .footer { display: flex; align-items: center; justify-content: flex-end; height: 22px; padding-right: 7px; gap: 4px; overflow: hidden; }
+.extension-list-item .author { flex: 1; min-width: 0; display: flex; align-items: center; gap: 4px; font-size: 90%; font-weight: 600; opacity: .9; white-space: nowrap; overflow: hidden; }
+.extension-status { font-weight: 400; color: var(--vscode-descriptionForeground); }
+.verified-publisher { font-size: 13px !important; color: var(--vscode-textLink-foreground); }
+.extension-actions { flex: none; display: flex; align-items: center; gap: 4px; }
+.extension-actions .action-label { width: 22px; height: 22px; }
+@media (pointer: coarse) {
+  .extension-list-item { height: 80px; }
+  .extension-list-item .footer { height: 30px; }
+  .extension-actions .action-label { width: 30px; height: 30px; }
+}
+.extension-action.monaco-button { min-height: 0; height: 20px; padding: 0 8px; font-size: 11px; line-height: 18px; border-radius: 2px; }
+@media (pointer: coarse) { .extension-action.monaco-button { height: 28px; padding: 0 12px; font-size: 12px; } }
+.extension-action.prominent, .monaco-button.prominent {
+  background: var(--vscode-extensionButton-prominentBackground); color: var(--vscode-extensionButton-prominentForeground);
+}
+.extension-action.prominent:hover, .monaco-button.prominent:hover { background: var(--vscode-extensionButton-prominentHoverBackground); }
+
+/* icon tile: the extension's "logo" — a codicon on a tinted square */
+.extension-icon-tile {
+  --ext-tint: var(--tok-keyword);
+  flex: none; display: flex; align-items: center; justify-content: center;
+  width: 42px; height: 42px; border-radius: 6px;
+  color: var(--ext-tint);
+  background: color-mix(in srgb, var(--ext-tint) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ext-tint) 35%, transparent);
+}
+.extension-icon-tile .codicon { font-size: 24px !important; }
+.extension-icon-tile.large { width: 128px; height: 128px; border-radius: 14px; }
+.extension-icon-tile.large .codicon { font-size: 64px !important; }
+@supports not (background: color-mix(in srgb, red 50%, transparent)) {
+  .extension-icon-tile { background: var(--vscode-editorWidget-background); border-color: var(--vscode-widget-border); }
+}
+
+/* ---------------- Extension editor ---------------- */
+.extension-editor-container { background: var(--vscode-editor-background); }
+.extension-editor { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden; }
+.extension-editor > .header { flex: none; display: flex; padding: 20px 20px 14px; gap: 20px; overflow: hidden; font-size: 14px; }
+.extension-editor > .header > .details { flex: 1; min-width: 0; overflow: hidden; }
+.extension-editor .title { display: flex; align-items: center; flex-wrap: wrap; gap: 0 10px; }
+.extension-editor .title .name { font-size: 26px; font-weight: 600; line-height: 32px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--vscode-settings-headerForeground); }
+.extension-editor .title .identifier {
+  font-size: 12px; line-height: 18px; padding: 0 5px; border-radius: 4px; user-select: text; -webkit-user-select: text;
+  background: var(--vscode-textPreformat-background); color: var(--vscode-foreground);
+}
+.extension-editor .title .builtin { font-size: 11px; font-style: italic; color: var(--vscode-descriptionForeground); }
+.extension-editor .subtitle { display: flex; align-items: center; gap: 8px; height: 22px; margin-top: 6px; }
+.extension-editor .subtitle .publisher { display: inline-flex; align-items: center; gap: 4px; }
+.extension-editor .subtitle-sep { color: var(--vscode-textSeparator-foreground, var(--vscode-descriptionForeground)); }
+.extension-editor .subtitle .version { color: var(--vscode-descriptionForeground); }
+.extension-editor .header .description { margin-top: 10px; line-height: 20px; overflow-wrap: anywhere; }
+.extension-editor .header .actions { display: flex; align-items: center; gap: 6px; margin-top: 10px; }
+.extension-editor .header .actions .monaco-button { height: 24px; font-size: 12px; padding: 0 10px; }
+.extension-editor .header .status { margin-top: 8px; font-size: 12px; color: var(--vscode-descriptionForeground); }
+.extension-editor > .body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.extension-editor .navbar {
+  flex: none; display: flex; gap: 20px; height: 36px; padding: 0 20px;
+  border-bottom: 1px solid var(--vscode-panel-border, var(--vscode-widget-border));
+}
+.extension-editor .navbar-item {
+  display: flex; align-items: center; height: 100%; font-size: 11px; cursor: pointer; text-decoration: none;
+  color: var(--vscode-panelTitle-inactiveForeground); border-bottom: 1px solid transparent; margin-bottom: -1px;
+}
+.extension-editor .navbar-item.active { color: var(--vscode-panelTitle-activeForeground); border-bottom-color: var(--vscode-panelTitle-activeBorder); }
+.extension-editor .navbar-item:focus-visible { outline: 1px solid var(--vscode-focusBorder); outline-offset: -1px; }
+.extension-editor > .body > .content { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 20px 40px; outline: none; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+.extension-editor-missing { padding: 24px; }
+
+.extension-features h3 { margin: 20px 0 8px; font-size: 13px; font-weight: 600; text-transform: uppercase; color: var(--vscode-settings-headerForeground); }
+.feature-list { border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border)); border-radius: 3px; overflow: hidden; }
+.feature-row { display: flex; align-items: center; gap: 10px; padding: 7px 10px; cursor: pointer; outline: none; }
+.feature-row + .feature-row { border-top: 1px solid var(--vscode-widget-border, var(--vscode-panel-border)); }
+.feature-row:hover { background: var(--vscode-list-hoverBackground); }
+.feature-row:focus-visible { outline: 1px solid var(--vscode-focusBorder); outline-offset: -1px; }
+.feature-main { flex: 1; min-width: 0; }
+.feature-title { font-size: 13px; overflow-wrap: anywhere; }
+.feature-id { font-family: var(--font-mono); font-size: 11px; color: var(--vscode-descriptionForeground); overflow-wrap: anywhere; }
+.feature-description { font-size: 12px; margin-top: 2px; color: var(--vscode-descriptionForeground); }
+.feature-default { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); font-size: 12px; color: var(--vscode-textPreformat-foreground); }
+.feature-row .monaco-keybinding { margin-left: 0; }
+
+.phone .extension-editor > .header { padding: 14px 12px 10px; gap: 14px; }
+.phone .extension-icon-tile.large { width: 72px; height: 72px; border-radius: 10px; }
+.phone .extension-icon-tile.large .codicon { font-size: 38px !important; }
+.phone .extension-editor .title .name { font-size: 20px; line-height: 26px; white-space: normal; }
+.phone .extension-editor .navbar { padding: 0 12px; }
+.phone .extension-editor > .body > .content { padding: 4px 12px 40px; }
+@media (pointer: coarse) { .extension-editor .header .actions .monaco-button { height: 30px; } }
+
+/* ---------------- Markdown documents (extension details, release notes) ---------------- */
+.xc-markdown { font-size: 14px; line-height: 22px; color: var(--vscode-foreground); overflow-wrap: anywhere; user-select: text; -webkit-user-select: text; }
+.xc-markdown h1 { font-size: 2em; line-height: 1.25; margin: 20px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--vscode-textSeparator-foreground, var(--vscode-widget-border)); font-weight: 600; }
+.xc-markdown h2 { font-size: 1.5em; line-height: 1.3; margin: 24px 0 10px; padding-bottom: 4px; border-bottom: 1px solid var(--vscode-textSeparator-foreground, var(--vscode-widget-border)); font-weight: 600; }
+.xc-markdown h3 { font-size: 1.2em; margin: 20px 0 8px; font-weight: 600; }
+.xc-markdown h4 { font-size: 1em; margin: 16px 0 6px; font-weight: 600; }
+.xc-markdown p, .xc-markdown ul, .xc-markdown ol, .xc-markdown table, .xc-markdown blockquote, .xc-markdown pre { margin: 0 0 14px; }
+.xc-markdown ul, .xc-markdown ol { padding-left: 24px; }
+.xc-markdown li + li { margin-top: 3px; }
+.xc-markdown a { color: var(--vscode-textLink-foreground); text-decoration: none; }
+.xc-markdown a:hover { color: var(--vscode-textLink-activeForeground); text-decoration: underline; }
+.xc-markdown code { font-family: var(--font-mono); font-size: .9em; padding: 1px 4px; border-radius: 3px; color: var(--vscode-textPreformat-foreground); background: var(--vscode-textPreformat-background); }
+.xc-markdown pre { padding: 12px 14px; overflow-x: auto; border-radius: 3px; background: var(--vscode-textCodeBlock-background); }
+.xc-markdown pre code { padding: 0; background: none; color: var(--vscode-editor-foreground); font-size: 13px; }
+.xc-markdown blockquote { padding: 2px 16px; border-left: 5px solid var(--vscode-textBlockQuote-border); background: var(--vscode-textBlockQuote-background); }
+.xc-markdown table { border-collapse: collapse; display: block; max-width: 100%; overflow-x: auto; }
+.xc-markdown th, .xc-markdown td { padding: 5px 10px; border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border)); text-align: left; }
+.xc-markdown th { font-weight: 600; }
+.xc-markdown hr { border: 0; height: 1px; background: var(--vscode-textSeparator-foreground, var(--vscode-widget-border)); margin: 20px 0; }
+.xc-markdown img { max-width: 100%; }
+.xc-markdown-fallback { white-space: pre-wrap; font-family: var(--font-mono); font-size: 12px; }
+
+.xc-release-notes-editor { background: var(--vscode-editor-background); }
+.xc-release-notes-scroll { height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; outline: none; }
+.release-notes-body { max-width: 882px; margin: 0 auto; padding: 8px 26px 48px; }
+.phone .release-notes-body { padding: 4px 14px 40px; font-size: 14px; }
+.phone .release-notes-body h1 { font-size: 1.6em; }
+
+/* project picker: rename/delete buttons must be reachable without hover on touch screens */
+@media (hover: none) {
+  .quick-input-list-entry.xc-project-entry .quick-input-list-entry-action-bar { display: flex; }
+}
