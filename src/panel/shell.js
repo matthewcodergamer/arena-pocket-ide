@@ -66,12 +66,14 @@ export function tokenize(src) {
         const d = src[j];
         if (d === '"') break;
         if (d === '\\' && '$`"\\\n'.includes(src[j + 1])) { flush(); if (src[j + 1] !== '\n') part(src[j + 1], 1); j += 2; continue; }
+        if (d === '$' && src[j + 1] === '(' && src[j + 2] === '(') { flush(); const k = matchArith(src, j + 1); part({ arith: src.slice(j + 3, k - 1) }, 2); j = k + 1; continue; }
         if (d === '$' && src[j + 1] === '(') { flush(); const k = matchParen(src, j + 1); part({ sub: src.slice(j + 2, k) }, 2); j = k + 1; continue; }
         if (d === '`') { flush(); const k = src.indexOf('`', j + 1); if (k < 0) throw new ShellError('unmatched `', 2); part({ sub: src.slice(j + 1, k) }, 2); j = k + 1; continue; }
         buf += d; j++;
       }
       flush(); i = j + 1; continue;
     }
+    if (c === '$' && src[i + 1] === '(' && src[i + 2] === '(') { const k = matchArith(src, i + 1); part({ arith: src.slice(i + 3, k - 1) }, 0); i = k + 1; continue; }
     if (c === '$' && src[i + 1] === '(') { const k = matchParen(src, i + 1); part({ sub: src.slice(i + 2, k) }, 0); i = k + 1; continue; }
     if (c === '`') { const k = src.indexOf('`', i + 1); if (k < 0) throw new ShellError('unmatched `', 2); part({ sub: src.slice(i + 1, k) }, 0); i = k + 1; continue; }
     // Redirections. A file-descriptor prefix (2>, 1>) only counts at the start of a word, like bash
@@ -103,6 +105,99 @@ function matchParen(src, open) {
     else if (c === ')' && --depth === 0) return k;
   }
   throw new ShellError('unmatched (', 2);
+}
+
+/** Index of the second ')' closing a $(( … )) that opens at `open` (the first '('). */
+function matchArith(src, open) {
+  let depth = 0;
+  for (let k = open; k < src.length; k++) {
+    if (src[k] === '(') depth++;
+    else if (src[k] === ')' && --depth === 0) {
+      if (src[k - 1] !== ')') throw new ShellError('arithmetic expansion: missing `))\'', 2);
+      return k;
+    }
+  }
+  throw new ShellError('unmatched $((', 2);
+}
+
+/**
+ * Shell arithmetic ($(( … ))): integers, variables, + - * / % **, comparisons, ! && ||, ~ & | ^ << >>,
+ * ?: and parentheses. A small recursive-descent evaluator (no eval).
+ */
+export function evalArithmetic(expr, getVar) {
+  const toks = String(expr).match(/\s*(0x[0-9a-f]+|\d+|[A-Za-z_][A-Za-z0-9_]*|\*\*|<<|>>|<=|>=|==|!=|&&|\|\||[-+*/%()<>!~&|^?:])/giy);
+  if (String(expr).trim() && (!toks || toks.join('').replace(/\s+/g, '') !== String(expr).replace(/\s+/g, ''))) throw new ShellError(`${String(expr).trim()}: syntax error in expression`, 1);
+  const list = (toks || []).map(t => t.trim());
+  let i = 0;
+  const peek = () => list[i];
+  const eat = t => { if (list[i] === t) { i++; return true; } return false; };
+  const value = name => { const v = getVar(name); const n = parseInt(v || '0', 10); return Number.isNaN(n) ? 0 : n; };
+  const primary = () => {
+    const t = list[i++];
+    if (t == null) throw new ShellError('syntax error: operand expected', 1);
+    if (t === '(') { const v = ternary(); if (!eat(')')) throw new ShellError("syntax error: missing ')'", 1); return v; }
+    if (t === '-') return -unary0();
+    if (t === '+') return unary0();
+    if (t === '!') return unary0() ? 0 : 1;
+    if (t === '~') return ~unary0();
+    if (/^0x/i.test(t)) return parseInt(t, 16);
+    if (/^\d/.test(t)) return parseInt(t, 10);
+    if (/^[A-Za-z_]/.test(t)) return value(t);
+    throw new ShellError(`syntax error: operand expected (error token is "${t}")`, 1);
+  };
+  const unary0 = () => primary();
+  const pow = () => { const b = unary0(); if (eat('**')) return b ** pow(); return b; };
+  const bin = (next, ops) => () => {
+    let v = next();
+    for (;;) {
+      const op = peek();
+      if (!ops.includes(op)) return v;
+      i++;
+      const r = next();
+      switch (op) {
+        case '*': v = v * r; break;
+        case '/': if (!r) throw new ShellError('division by 0', 1); v = Math.trunc(v / r); break;
+        case '%': if (!r) throw new ShellError('division by 0', 1); v = v % r; break;
+        case '+': v = v + r; break;
+        case '-': v = v - r; break;
+        case '<<': v = v << r; break;
+        case '>>': v = v >> r; break;
+        case '<': v = +(v < r); break;
+        case '>': v = +(v > r); break;
+        case '<=': v = +(v <= r); break;
+        case '>=': v = +(v >= r); break;
+        case '==': v = +(v === r); break;
+        case '!=': v = +(v !== r); break;
+        case '&': v = v & r; break;
+        case '^': v = v ^ r; break;
+        case '|': v = v | r; break;
+        case '&&': v = +(!!v && !!r); break;
+        case '||': v = +(!!v || !!r); break;
+      }
+    }
+  };
+  const mul = bin(pow, ['*', '/', '%']);
+  const add = bin(mul, ['+', '-']);
+  const shift = bin(add, ['<<', '>>']);
+  const rel = bin(shift, ['<', '>', '<=', '>=']);
+  const eq = bin(rel, ['==', '!=']);
+  const band = bin(eq, ['&']);
+  const bxor = bin(band, ['^']);
+  const bor = bin(bxor, ['|']);
+  const land = bin(bor, ['&&']);
+  const lor = bin(land, ['||']);
+  function ternary() {
+    const c = lor();
+    if (!eat('?')) return c;
+    const a = ternary();
+    if (!eat(':')) throw new ShellError("syntax error: ':' expected", 1);
+    const b = ternary();
+    return c ? a : b;
+  }
+  if (!list.length) return 0;
+  const v = ternary();
+  if (i < list.length) throw new ShellError(`syntax error in expression (error token is "${list[i]}")`, 1);
+  return v;
 }
 
 const plainWord = tok => tok?.t === 'word' && tok.parts.length === 1 && tok.parts[0].q === 0 && tok.parts[0].v != null ? tok.parts[0].v : null;
@@ -326,6 +421,11 @@ export class Shell {
       });
     };
     for (const p of tok.parts) {
+      if (p.arith != null) {
+        const n = String(evalArithmetic(this.expandVars(p.arith), name => this.getVar(name)));
+        if (p.q === 2) literal(n, 2); else splittable(n);
+        continue;
+      }
       if (p.sub != null) {
         const out = (await this.capture(p.sub, io)).replace(/\n+$/, '');
         if (p.q === 2) literal(out, 2); else splittable(out);

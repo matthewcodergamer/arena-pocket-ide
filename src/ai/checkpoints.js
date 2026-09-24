@@ -5,7 +5,7 @@
 //   edits: [...edit summaries], mode }. `record` is the file record before the turn (null = the file did not exist).
 //
 //   const cp = await checkpoints.open({ projectId, turnId, mode })   create (or load) the checkpoint of a turn
-//   await checkpoints.snapshot(cp, fs, path)                         first-touch snapshot of one path
+//   await checkpoints.snapshot(cp, fs, path, { content? })            first-touch snapshot of one path (content = live text)
 //   await checkpoints.restore(cp, fs, paths?)                        restore all / some paths → restored paths
 //   await checkpoints.forTurn(turnId, suffix?) / latest(projectId) / list(projectId)
 //   (a turn that creates a new project gets one checkpoint per project: cp_<turn>, cp_<turn>~<projectId>)
@@ -52,12 +52,21 @@ export const checkpoints = {
   has(cp, path) { return cp.records.some(r => r.path === path); },
 
   /** Records the current state of `path` unless it was already recorded in this checkpoint. */
-  async snapshot(cp, fs, path) {
+  async snapshot(cp, fs, path, { content } = {}) {
     if (!cp || this.has(cp, path)) return false;
     const rec = fs.get(path);
     let copy = cloneRecord(rec);
+    // the text the AI actually changed (an open editor's unsaved text) is what undo must bring back
+    if (copy && copy.type === 'file' && !copy.binary && typeof content === 'string') copy.content = content;
     if (copy?.binary && copy.binary.size > MAX_SNAPSHOT_BYTES) copy = { ...copy, binary: null, content: null, tooLarge: true };
     cp.records.push({ path, record: copy });
+    // a new file may implicitly create its parent folders: record them so undo can remove them (when empty)
+    if (!rec) {
+      for (let dir = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : ''; dir; dir = dir.includes('/') ? dir.slice(0, dir.lastIndexOf('/')) : '') {
+        if (fs.exists(dir) || this.has(cp, dir)) break;
+        cp.records.push({ path: dir, record: null, folder: true });
+      }
+    }
     // snapshot everything inside a folder that is about to be deleted/renamed
     if (rec?.type === 'folder') {
       for (const r of fs.entries()) if (r.path.startsWith(path + '/') && !this.has(cp, r.path)) cp.records.push({ path: r.path, record: cloneRecord(r) });
@@ -74,13 +83,20 @@ export const checkpoints = {
    */
   async restore(cp, fs, paths = null) {
     const want = paths?.length ? new Set(paths) : null;
-    const records = cp.records.filter(r => !want || want.has(r.path) || [...want].some(p => r.path.startsWith(p + '/')));
+    const records = cp.records.filter(r => !want || want.has(r.path) || [...want].some(p => r.path.startsWith(p + '/') || (r.folder && p.startsWith(r.path + '/'))));
     const restored = [], skipped = [];
     // 1) remove paths that were created by the turn (deepest first)
-    for (const { path, record } of [...records].sort((a, b) => b.path.length - a.path.length)) {
+    for (const { path, record, folder } of [...records].sort((a, b) => b.path.length - a.path.length)) {
       if (record) continue;
-      try { if (fs.exists(path)) { await fs.remove(path, { source: 'ai' }); } restored.push(path); }
-      catch (err) { skipped.push({ path, reason: err.message }); }
+      try {
+        if (folder) {
+          // implicitly created parent folder: remove it only if nothing else was put into it
+          if (fs.isFolder(path) && !fs.list(path).length) await fs.remove(path, { source: 'ai' });
+          continue;
+        }
+        if (fs.exists(path)) await fs.remove(path, { source: 'ai' });
+        restored.push(path);
+      } catch (err) { skipped.push({ path, reason: err.message }); }
     }
     // 2) put back the original content
     for (const { path, record } of records) {

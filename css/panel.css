@@ -1,1 +1,245 @@
-/* panel styles */
+/* Panel: PROBLEMS · OUTPUT · DEBUG CONSOLE · TERMINAL (VS Code look, theme tokens only). */
+
+/* ---------------- shared: title widgets + filter row ---------------- */
+.panel .title-actions .xc-select.terminal-switcher,
+.panel .title-actions .xc-select.output-channel-select {
+  width: auto; min-width: 90px; max-width: 180px; height: 22px; margin: 0 4px 0 0;
+  padding: 0 22px 0 6px; font-size: 12px; line-height: 20px; background-position: right 2px center;
+}
+.terminal-switcher-button, .output-channel-button {
+  display: inline-flex; align-items: center; gap: 2px; height: 26px; max-width: 132px; margin-right: 2px;
+  padding: 0 2px 0 8px; border: 1px solid var(--vscode-dropdown-border); border-radius: 2px;
+  background: var(--vscode-dropdown-background); color: var(--vscode-dropdown-foreground);
+  font-size: 12px; cursor: pointer; text-decoration: none; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none;
+}
+.terminal-switcher-button .label, .output-channel-button .label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.terminal-switcher-button .codicon, .output-channel-button .codicon { font-size: 14px; flex: none; }
+.terminal-switcher-button:focus-visible, .output-channel-button:focus-visible { outline: 1px solid var(--vscode-focusBorder); outline-offset: -1px; }
+
+.panel .title-actions .problems-filter, .panel .title-actions .repl-filter { width: clamp(160px, 26vw, 320px); height: 24px; margin-right: 4px; }
+.panel .title-actions .problems-filter input, .panel .title-actions .repl-filter input { padding: 2px 6px; font-size: 12px; line-height: 18px; }
+.problems-filter .controls, .repl-filter .controls { align-items: center; }
+.filter-count.monaco-count-badge { margin: 0 2px 0 0; padding: 0 6px; font-size: 11px; white-space: nowrap; height: 16px; line-height: 16px; }
+.filter-count.hidden { display: none; }
+.problems-filter .more-filters { width: 20px; height: 20px; font-size: 16px; }
+.problems-filter .more-filters.checked { color: var(--vscode-inputOption-activeForeground); }
+
+.panel-filter-row { flex: none; padding: 4px 10px 6px; }
+.panel-filter-row.hidden { display: none; }
+.panel-filter-row .monaco-inputbox input { font-size: 13px; }
+@media (pointer: coarse) {
+  .problems-filter .more-filters { width: 30px; height: 30px; }
+}
+
+/* ---------------- PROBLEMS ---------------- */
+.problems-tree { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; padding-bottom: 4px; }
+.problems-row { gap: 4px; padding-right: 12px; }
+.problems-row.file-row { padding-left: 8px; }
+.problems-row.file-row .monaco-tl-twistie { width: 16px; }
+.problems-row .file-icon-host { display: inline-flex; flex: none; width: 16px; height: 16px; margin-right: 2px; }
+.problems-row .monaco-icon-label { min-width: 0; flex: 0 1 auto; }
+.problems-row .label-name { flex: none; }
+.problems-row .label-description { overflow: hidden; text-overflow: ellipsis; }
+.problems-row .monaco-count-badge { flex: none; margin-left: 6px; min-width: 18px; height: 18px; line-height: 18px; }
+.problems-row.marker-row { padding-left: 38px; }
+.problems-row .marker-icon { font-size: 16px; margin-right: 2px; }
+.marker-icon.error { color: var(--vscode-problemsErrorIcon-foreground, var(--vscode-editorError-foreground)); }
+.marker-icon.warning { color: var(--vscode-problemsWarningIcon-foreground, var(--vscode-editorWarning-foreground)); }
+.marker-icon.info { color: var(--vscode-problemsInfoIcon-foreground, var(--vscode-editorInfo-foreground)); }
+.problems-row .marker-body { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.problems-row .marker-source, .problems-row .marker-line { margin-left: 6px; color: var(--vscode-descriptionForeground); }
+.monaco-list:focus-within .problems-row.selected .marker-source,
+.monaco-list:focus-within .problems-row.selected .marker-line,
+.monaco-list:focus-within .problems-row.selected .label-description { color: inherit; }
+.problems-message { flex: none; padding: 6px 20px; }
+.problems-message.hidden { display: none; }
+.problems-message .text-link-button { font-size: inherit; }
+
+/* Phones: messages wrap (source and position flow after the text) so they can be read without hovering. */
+.phone .problems-row.marker-row { height: auto; min-height: var(--row-height); line-height: 18px; align-items: flex-start; padding-top: 6px; padding-bottom: 6px; padding-left: 30px; }
+.phone .problems-row.marker-row .marker-icon { line-height: 18px; }
+.phone .problems-row .marker-body { white-space: normal; overflow-wrap: anywhere; }
+.phone .problems-row .marker-source, .phone .problems-row .marker-line { white-space: nowrap; font-size: 12px; }
+
+/* Phones: the panel tab strip scrolls; fade the edge so a clipped neighbour tab reads as "more tabs". */
+.phone #panel .panel-switcher-container { -webkit-mask-image: linear-gradient(to right, transparent 0, #000 10px); mask-image: linear-gradient(to right, transparent 0, #000 10px); }
+
+/* status bar: $(error) 0 $(warning) 0 */
+.statusbar-item.problems-status .statusbar-item-label { gap: 3px; }
+.statusbar-item.problems-status .codicon + .codicon { margin-left: 0; }
+
+/* ---------------- OUTPUT ---------------- */
+.output-log {
+  flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; outline: none;
+  padding: 2px 12px 8px 12px; white-space: pre; tab-size: 4;
+  font-family: var(--font-mono); font-size: 12px; line-height: 18px;
+  color: var(--vscode-editor-foreground, var(--vscode-foreground)); background: var(--vscode-panel-background);
+  user-select: text; -webkit-user-select: text;
+}
+.output-log.wrap { white-space: pre-wrap; overflow-wrap: anywhere; }
+.output-line { min-height: 18px; }
+.output-line .log-date { color: var(--tok-comment); }
+.output-line.level-info .log-level { color: var(--tok-inserted); }
+.output-line.level-warning .log-level { color: var(--tok-deleted); }
+.output-line.level-error .log-level { color: var(--tok-regexp); font-weight: 600; }
+.output-line.level-debug .log-level { color: var(--tok-keyword); }
+.output-line.level-trace .log-level { color: var(--tok-comment); }
+.output-line .log-string { color: var(--tok-string); }
+.output-line .log-link { color: var(--tok-link); text-decoration: underline; }
+.output-log:focus, .output-log:focus-visible { outline: none; }
+
+/* ---------------- DEBUG CONSOLE ---------------- */
+.repl-tree {
+  flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; outline: none; padding: 2px 0 4px;
+  font-family: var(--font-mono); font-size: 12px; line-height: 19px; user-select: text; -webkit-user-select: text;
+}
+.repl-row { display: flex; align-items: flex-start; gap: 4px; min-height: 19px; padding: 0 12px 0 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.repl-row:hover { background: var(--vscode-list-hoverBackground); }
+.repl-row .repl-value { flex: 1; min-width: 0; }
+.repl-row .repl-icon { flex: none; font-size: 14px; line-height: 19px; }
+.repl-row .repl-icon.error { color: var(--vscode-editorError-foreground); }
+.repl-row .repl-icon.warning { color: var(--vscode-editorWarning-foreground); }
+.repl-row .repl-icon.info { color: var(--vscode-editorInfo-foreground); }
+.repl-row .input-icon, .repl-row .result-icon:not(.error) { color: var(--vscode-descriptionForeground); }
+.repl-row.level-error .repl-value { color: var(--vscode-debugConsole-errorForeground, var(--vscode-errorForeground)); }
+.repl-row.level-warning .repl-value { color: var(--vscode-debugConsole-warningForeground, var(--vscode-editorWarning-foreground)); }
+.repl-row.level-info .repl-value { color: var(--vscode-debugConsole-infoForeground, var(--vscode-editorInfo-foreground)); }
+.repl-row.level-debug .repl-value { color: var(--vscode-descriptionForeground); }
+.repl-row.kind-input .repl-value { color: var(--vscode-foreground); }
+.repl-row.level-error, .repl-row.level-warning { border-top: 1px solid transparent; }
+.repl-row .repl-source { flex: none; margin-left: 10px; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--vscode-debugConsole-sourceForeground, var(--vscode-descriptionForeground)); font-size: 11px; }
+.repl-row .repl-count.monaco-count-badge { flex: none; margin: 1px 2px 0 0; min-width: 16px; height: 16px; line-height: 16px; padding: 0 4px; font-size: 10px; font-family: var(--font-ui); }
+.repl-row .repl-count.hidden { display: none; }
+.repl-input-wrapper {
+  flex: none; display: flex; align-items: flex-start; gap: 4px; padding: 3px 12px 3px 10px;
+  border-top: 1px solid var(--vscode-panelInput-border, var(--vscode-panel-border)); cursor: text;
+}
+.repl-input-wrapper .repl-input-icon { flex: none; font-size: 14px; line-height: 19px; color: var(--vscode-descriptionForeground); }
+.repl-input {
+  flex: 1; min-width: 0; min-height: 19px; max-height: 120px; padding: 0; margin: 0; border: 0; outline: none; resize: none;
+  background: transparent; color: var(--vscode-foreground); font: 12px/19px var(--font-mono);
+}
+.repl-input::placeholder { color: var(--vscode-input-placeholderForeground); opacity: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (pointer: coarse) {
+  .repl-input-wrapper { padding-top: 6px; padding-bottom: 6px; }
+  .repl-input { font-size: 13px; line-height: 22px; min-height: 22px; }
+  .repl-input-wrapper .repl-input-icon { line-height: 22px; }
+  .repl-tree { font-size: 12.5px; }
+}
+
+/* ---------------- TERMINAL ---------------- */
+.terminal-panel { background: var(--vscode-terminal-background, var(--vscode-panel-background)); }
+.terminal-outer-container { position: absolute; inset: 0; display: flex; flex-direction: column; }
+.terminal-empty { margin: auto; text-align: center; }
+.terminal-empty.hidden { display: none; }
+.terminal-empty .monaco-button { width: auto; }
+.terminal-instance {
+  flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative;
+  color: var(--vscode-terminal-foreground); background: var(--vscode-terminal-background, var(--vscode-panel-background));
+  font-family: var(--terminal-font-family, var(--font-mono)); font-size: var(--terminal-font-size, 13px);
+  line-height: var(--terminal-line-height, 1.2); font-variant-ligatures: none; font-feature-settings: "liga" 0, "calt" 0;
+}
+.xterm-viewport {
+  flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+  padding: 0 20px; cursor: text;
+}
+.phone .xterm-viewport { padding: 0 10px; }
+.xterm-screen { position: relative; min-height: 100%; padding: 4px 0 8px; }
+.xterm-rows {
+  white-space: pre-wrap; word-break: break-all; overflow-wrap: anywhere; tab-size: 8;
+  user-select: text; -webkit-user-select: text;
+}
+.xterm-line { min-height: calc(var(--terminal-font-size, 13px) * var(--terminal-line-height, 1.2)); }
+.xterm-rows ::selection { background: var(--vscode-terminal-selectionBackground); }
+.xterm-char-measure { position: absolute; top: 0; left: 0; visibility: hidden; white-space: pre; pointer-events: none; }
+.xterm-helper-textarea {
+  position: absolute; top: 0; left: 0; z-index: -5; width: 1px; height: calc(var(--terminal-font-size, 13px) * var(--terminal-line-height, 1.2));
+  margin: 0; padding: 0; border: 0; outline: none; resize: none; overflow: hidden; white-space: nowrap;
+  opacity: 0; color: transparent; background: transparent; caret-color: transparent; font-size: 16px; line-height: 1;
+  pointer-events: none;
+}
+
+/* cursor (block | line | underline), blinking like xterm.js; outline when the terminal is not focused */
+.xterm-cursor { background: var(--vscode-terminalCursor-foreground); color: var(--vscode-terminal-background, var(--vscode-panel-background)); }
+.xterm-cursor.xterm-cursor-blurred { background: transparent; color: inherit; outline: 1px solid var(--vscode-terminalCursor-foreground); outline-offset: -1px; }
+.terminal-instance[data-cursor-style="line"] .xterm-cursor { background: transparent; color: inherit; outline: none; box-shadow: inset 2px 0 0 var(--vscode-terminalCursor-foreground); }
+.terminal-instance[data-cursor-style="underline"] .xterm-cursor { background: transparent; color: inherit; outline: none; box-shadow: inset 0 -2px 0 var(--vscode-terminalCursor-foreground); }
+.terminal-instance[data-cursor-style="line"] .xterm-cursor-blurred,
+.terminal-instance[data-cursor-style="underline"] .xterm-cursor-blurred { opacity: .5; }
+.terminal-instance.cursor-blink.focused .xterm-cursor-focused { animation: xterm-cursor-blink 1.2s step-end infinite; }
+@keyframes xterm-cursor-blink {
+  0% { background: var(--vscode-terminalCursor-foreground); color: var(--vscode-terminal-background, var(--vscode-panel-background)); }
+  50% { background: transparent; color: var(--vscode-terminal-foreground); box-shadow: none; }
+}
+.terminal-instance[data-cursor-style="line"].cursor-blink.focused .xterm-cursor-focused,
+.terminal-instance[data-cursor-style="underline"].cursor-blink.focused .xterm-cursor-focused { animation-name: xterm-cursor-blink-bar; }
+@keyframes xterm-cursor-blink-bar { 50% { box-shadow: none; } }
+.xterm-input-selection { background: var(--vscode-terminal-selectionBackground); }
+.xterm-link { color: inherit; text-decoration: none; cursor: text; }
+.xterm-link:hover { text-decoration: underline; }
+@media (hover: hover) and (pointer: fine) { .terminal-instance .xterm-link:hover { cursor: pointer; } }
+@media (hover: none), (pointer: coarse) { .xterm-link { text-decoration: underline; text-decoration-color: var(--vscode-terminal-ansiBrightBlack); text-underline-offset: 2px; } }
+
+/* ANSI colours → the theme's terminal palette */
+.xterm-fg-0 { color: var(--vscode-terminal-ansiBlack); }
+.xterm-fg-1 { color: var(--vscode-terminal-ansiRed); }
+.xterm-fg-2 { color: var(--vscode-terminal-ansiGreen); }
+.xterm-fg-3 { color: var(--vscode-terminal-ansiYellow); }
+.xterm-fg-4 { color: var(--vscode-terminal-ansiBlue); }
+.xterm-fg-5 { color: var(--vscode-terminal-ansiMagenta); }
+.xterm-fg-6 { color: var(--vscode-terminal-ansiCyan); }
+.xterm-fg-7 { color: var(--vscode-terminal-ansiWhite); }
+.xterm-fg-8 { color: var(--vscode-terminal-ansiBrightBlack); }
+.xterm-fg-9 { color: var(--vscode-terminal-ansiBrightRed); }
+.xterm-fg-10 { color: var(--vscode-terminal-ansiBrightGreen); }
+.xterm-fg-11 { color: var(--vscode-terminal-ansiBrightYellow); }
+.xterm-fg-12 { color: var(--vscode-terminal-ansiBrightBlue); }
+.xterm-fg-13 { color: var(--vscode-terminal-ansiBrightMagenta); }
+.xterm-fg-14 { color: var(--vscode-terminal-ansiBrightCyan); }
+.xterm-fg-15 { color: var(--vscode-terminal-ansiBrightWhite); }
+.xterm-bg-0 { background: var(--vscode-terminal-ansiBlack); }
+.xterm-bg-1 { background: var(--vscode-terminal-ansiRed); }
+.xterm-bg-2 { background: var(--vscode-terminal-ansiGreen); }
+.xterm-bg-3 { background: var(--vscode-terminal-ansiYellow); }
+.xterm-bg-4 { background: var(--vscode-terminal-ansiBlue); }
+.xterm-bg-5 { background: var(--vscode-terminal-ansiMagenta); }
+.xterm-bg-6 { background: var(--vscode-terminal-ansiCyan); }
+.xterm-bg-7 { background: var(--vscode-terminal-ansiWhite); }
+.xterm-bg-8 { background: var(--vscode-terminal-ansiBrightBlack); }
+.xterm-bg-9 { background: var(--vscode-terminal-ansiBrightRed); }
+.xterm-bg-10 { background: var(--vscode-terminal-ansiBrightGreen); }
+.xterm-bg-11 { background: var(--vscode-terminal-ansiBrightYellow); }
+.xterm-bg-12 { background: var(--vscode-terminal-ansiBrightBlue); }
+.xterm-bg-13 { background: var(--vscode-terminal-ansiBrightMagenta); }
+.xterm-bg-14 { background: var(--vscode-terminal-ansiBrightCyan); }
+.xterm-bg-15 { background: var(--vscode-terminal-ansiBrightWhite); }
+.xterm-bold { font-weight: bold; }
+.xterm-dim { opacity: .5; }
+.xterm-italic { font-style: italic; }
+.xterm-underline { text-decoration: underline; }
+.xterm-strike { text-decoration: line-through; }
+.xterm-underline.xterm-strike { text-decoration: underline line-through; }
+
+/* touch key row above the software keyboard (visible while the terminal has focus) */
+.terminal-keys {
+  display: none; flex: none; height: 40px; align-items: center; gap: 5px; padding: 0 6px;
+  padding-left: calc(6px + var(--safe-left, 0px)); padding-right: calc(6px + var(--safe-right, 0px));
+  overflow-x: auto; overflow-y: hidden; scrollbar-width: none; overscroll-behavior-x: contain; touch-action: pan-x;
+  background: var(--vscode-editorWidget-background); border-top: 1px solid var(--vscode-widget-border, var(--vscode-editorWidget-border));
+  user-select: none; -webkit-user-select: none; font-family: var(--font-ui);
+}
+.terminal-keys::-webkit-scrollbar { display: none; }
+@media (hover: none), (pointer: coarse) {
+  .terminal-instance.focused .terminal-keys { display: flex; }
+}
+.terminal-key {
+  flex: none; min-width: 34px; height: 30px; padding: 0 9px; margin: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--vscode-keybindingLabel-border); border-bottom-color: var(--vscode-keybindingLabel-bottomBorder);
+  border-radius: 5px; box-shadow: inset 0 -1px 0 var(--vscode-keybindingLabel-bottomBorder);
+  background: var(--vscode-keybindingLabel-background); color: var(--vscode-foreground);
+  font: 500 15px/1 var(--font-mono); cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+.terminal-key.icon-key { padding: 0 7px; }
+.terminal-key .codicon { font-size: 17px !important; }
+.terminal-key:active, .terminal-key.pressed { background: var(--vscode-toolbar-activeBackground); }

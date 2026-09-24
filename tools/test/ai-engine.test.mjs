@@ -62,6 +62,7 @@ async function engineScenarios(t) {
     expect(body.stream === true, 'ask: stream requested');
     expect(/You are X Coder/.test(body.system) && /# Mode: Ask/.test(body.system), 'ask: system prompt has identity + Ask mode');
     expect(/<environment>[\s\S]*Project: [\s\S]*<user_request>\nhi\n<\/user_request>/.test(lastUserText(body)), 'ask: environment + request');
+    expect(/\nStack: HTML \(1\), JavaScript \(1\), CSS \(1\)|\nStack: [^\n]*HTML/.test(lastUserText(body)), 'ask: project profile in environment');
     expect(body.max_tokens === 8192 || body.max_tokens === 16384, 'ask: max_tokens');
     return hello;
   });
@@ -280,6 +281,91 @@ async function engineScenarios(t) {
   assert.equal(r.res.text, 'Understood.');
   assert.equal(await page.evaluate(() => window.__xc.workspace.fs.exists('x.txt')), false);
 
+  // --- (12) Agent auto-check: a syntax error + a missing referenced file are fed back after the final answer
+  mock.enqueue('<write_file path="calc.js">\nexport function add(a, b) {\n  return a + b;\n\n</write_file>\n<edit_file path="index.html">\n<<<<<<< SEARCH\n  <script src="main.js"></script>\n=======\n  <script src="main.js"></script>\n  <script type="module" src="widgets/chart.js"></script>\n>>>>>>> REPLACE\n</edit_file>');
+  mock.enqueue(body => {
+    const u = lastUserText(body);
+    expect(/JavaScript syntax error/.test(u), 'agent: immediate syntax warning after write_file');
+    return 'Added the calculator module and the chart widget.';
+  });
+  mock.enqueue(body => {
+    const u = lastUserText(body);
+    expect(/<tool_result name="auto_check" status="error">/.test(u), 'auto-check: result block');
+    expect(/calc\.js: JavaScript syntax error/.test(u), 'auto-check: syntax problem');
+    expect(/index\.html:\d+: references "widgets\/chart\.js", but widgets\/chart\.js does not exist/.test(u), 'auto-check: missing reference');
+    return '<write_file path="calc.js">\nexport function add(a, b) {\n  return a + b;\n}\n</write_file>\n<write_file path="widgets/chart.js">\nexport const chart = true;\n</write_file>';
+  });
+  mock.enqueue('Fixed the syntax error and created widgets/chart.js.');
+  r = await turn(page, { prompt: 'add a calculator module and a chart widget', mode: 'agent' });
+  assert.ok(!r.error, r.error);
+  assert.equal(r.res.rounds, 4, `auto-check rounds (${r.res.rounds})`);
+  const checks = r.events.filter(e => e.type === 'tool' && e.name === 'auto_check');
+  assert.ok(checks.some(e => e.state === 'error' && /2 problems/.test(e.detail)), `auto-check error event: ${JSON.stringify(checks)}`);
+  assert.ok(checks.some(e => e.state === 'done' && /No problems/.test(e.detail)), 'second auto-check passes');
+  assert.equal(await read(page, 'calc.js'), 'export function add(a, b) {\n  return a + b;\n}\n');
+  assert.match(r.res.text, /Fixed the syntax error/);
+  await page.evaluate(t => window.__xc.eng.edits.undo(t), r.res.turnId);
+  assert.equal(await page.evaluate(() => window.__xc.workspace.fs.exists('calc.js')), false, 'auto-check turn undone');
+  assert.equal(await page.evaluate(() => window.__xc.workspace.fs.exists('widgets')), false, 'folders created by the turn are removed by undo');
+
+  // --- (13) Edit mode: a failed block is sent back once; the retry is staged next to the good edit
+  mock.enqueue('<edit_file path="style.css">\n<<<<<<< SEARCH\n  background: #101014;\n=======\n  background: #222;\n>>>>>>> REPLACE\n</edit_file>\n<edit_file path="main.js">\n<<<<<<< SEARCH\nconsole.log("this line does not exist anywhere");\n=======\nconsole.log("x");\n>>>>>>> REPLACE\n</edit_file>');
+  mock.enqueue(body => {
+    const u = lastUserText(body);
+    expect(/<tool_result name="edit_file" path="style.css" status="ok">\nStaged edit of style.css/.test(u), 'edit retry: good edit staged');
+    expect(/<tool_result name="edit_file" path="main.js" status="error">/.test(u), 'edit retry: failed edit reported');
+    expect(/Resend corrected versions of ONLY the failed edits/.test(u), 'edit retry: note');
+    return 'Corrected:\n<edit_file path="main.js">\n<<<<<<< SEARCH\nconsole.log(\'Preview connected\');\n=======\nconsole.log(\'Preview ready\');\n>>>>>>> REPLACE\n</edit_file>';
+  });
+  const beforeRetry = mock.requests.length;
+  r = await turn(page, { prompt: 'darker background and a new log line', mode: 'edit' });
+  assert.ok(!r.error, r.error);
+  assert.equal(mock.requests.length - beforeRetry, 2, 'edit mode: one retry round');
+  assert.deepEqual(r.res.edits.map(e => [e.path, e.state]), [['style.css', 'pending'], ['main.js', 'failed'], ['main.js', 'pending']]);
+  await page.evaluate(t => window.__xc.eng.edits.undo(t), r.res.turnId);
+
+  // --- (14) Agent mode: a pasted code dump for a change request is applied instead
+  mock.enqueue('Here is the file:\n```js\n// greet.js\nexport function greet(name) {\n  const n = String(name || "world");\n  const msg = `Hello, ${n}!`;\n  console.log(msg);\n  return msg;\n}\nexport default greet;\n```');
+  mock.enqueue(body => {
+    expect(/did not apply it/.test(lastUserText(body)), 'nudge: unapplied code note');
+    return '<write_file path="greet.js">\nexport function greet(name) {\n  return `Hello, ${name}!`;\n}\n</write_file>';
+  });
+  mock.enqueue('Created greet.js.');
+  r = await turn(page, { prompt: 'create a greet.js module that greets someone', mode: 'agent' });
+  assert.ok(!r.error, r.error);
+  assert.ok(await page.evaluate(() => window.__xc.workspace.fs.exists('greet.js')), 'nudge: file applied');
+  await page.evaluate(t => window.__xc.eng.edits.undo(t), r.res.turnId);
+
+  // --- (15) Long agent runs stay under the router's message limit; project profile + reference checker
+  const capped = await page.evaluate(async () => {
+    const { fitMessages } = await import('/src/ai/agent.js');
+    const msgs = [{ role: 'user', content: 'old question', kind: 'history' }, { role: 'assistant', content: 'old answer', kind: 'history' },
+      { role: 'user', content: '<environment>\nx\n</environment>\n\n<user_request>\ndo it\n</user_request>', kind: 'env' }];
+    for (let i = 0; i < 40; i++) {
+      msgs.push({ role: 'assistant', content: `<read_file path="f${i}.js"/>`, kind: 'assistant' });
+      msgs.push({ role: 'user', content: `<tool_result name="read_file" path="f${i}.js" status="ok">\nbody ${i}\n</tool_result>`, kind: 'results' });
+    }
+    const out = fitMessages(msgs, 1e6);
+    const alternates = out.every((m, i) => m.role === (i % 2 ? 'assistant' : 'user'));
+    return { n: out.length, first: out[0].content, alternates, last: out.at(-1).content };
+  });
+  assert.ok(capped.n <= 44, `message cap (${capped.n})`);
+  assert.ok(capped.alternates, 'roles alternate after the cap');
+  assert.match(capped.first, /<user_request>\ndo it\n<\/user_request>\n\n<earlier_steps>\n\d+ earlier round\(s\)[\s\S]*read_file f0\.js \(ok\)/);
+  assert.match(capped.last, /f39\.js/);
+  const profile = await page.evaluate(async () => {
+    const { projectProfile } = await import('/src/ai/context.js');
+    const { missingReferences } = await import('/src/ai/engine-verify.js');
+    const fs = window.__xc.workspace.fs;
+    return {
+      profile: projectProfile(fs),
+      refs: missingReferences(fs, 'index.html', '<link rel="stylesheet" href="style.css">\n<!-- <script src="gone.js"></script> -->\n<script src="https://cdn.x/y.js"></script>\n<img src="img/missing.png">\n<script type="module">import { a } from "./lib/a.js"; import b from "lodash";</script>')
+    };
+  });
+  assert.ok(profile.profile.some(l => /^Stack: .*JavaScript/.test(l)), `profile: ${profile.profile}`);
+  assert.ok(profile.profile.some(l => /^Entry points: .*index\.html/.test(l)), `entry points: ${profile.profile}`);
+  assert.deepEqual(profile.refs.map(x => x.ref), ['img/missing.png', './lib/a.js']);
+
   // --- (11) Cancelling aborts immediately
   mock.enqueue(async () => { await new Promise(res => setTimeout(res, 1500)); return 'too late'; });
   const aborted = await page.evaluate(async () => {
@@ -353,6 +439,46 @@ try {
   await t.command('workbench.action.openSettings', 'xcoder.ai');
   await page.waitForTimeout(800);
   await t.shot('engine-settings-iphone');
+  // Configure Router input box (validation message for an http:// URL)
+  await t.command('xcoder.ai.configureRouter');
+  await page.waitForSelector('#quick-input-widget:not(.hidden) input', { timeout: 5000 });
+  await page.fill('#quick-input-widget input', 'http://example.com/router');
+  await page.waitForTimeout(300);
+  const qiText = await page.textContent('#quick-input-widget');
+  assert.match(qiText, /must use https/, 'router URL validation shown');
+  await t.shot('engine-configure-router-iphone');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(200);
+  // Undo Last AI Edits asks for confirmation and lists the files
+  t.mock.enqueue('<write_file path="notes.md">\n# Notes\n</write_file>');
+  t.mock.enqueue('Added notes.md.');
+  assert.ok(!(await turn(page, { prompt: 'add notes', mode: 'agent' })).error);
+  await t.command('xcoder.ai.undoLastEdits');
+  await page.waitForTimeout(500);
+  const dialogText = await page.evaluate(() => document.body.innerText);
+  assert.match(dialogText, /Undo the last X Coder AI edits\?/, 'undo confirmation dialog');
+  assert.match(dialogText, /notes\.md/, 'undo dialog lists the file');
+  await t.shot('engine-undo-confirm-iphone');
+  const undoBtn = page.getByRole('button', { name: 'Undo Edits' });
+  await undoBtn.click();
+  await page.waitForTimeout(500);
+  assert.equal(await page.evaluate(() => window.__xc.workspace.fs.exists('notes.md')), false, 'undo via the dialog');
+  await t.shot('engine-undo-done-iphone');
+  // edits.diff feeds the diff editor (what the chat UI opens for "View changes")
+  await page.evaluate(() => window.__xc.workspace.fs.writeText('app.css', 'body {\n  margin: 0;\n  color: #333;\n}\n'));
+  t.mock.enqueue('<edit_file path="app.css">\n<<<<<<< SEARCH\n  color: #333;\n=======\n  color: #222;\n  font-family: system-ui, sans-serif;\n>>>>>>> REPLACE\n</edit_file>');
+  t.mock.enqueue('Updated the body text style.');
+  const dt = await turn(page, { prompt: 'darker text and system font', mode: 'agent' });
+  assert.ok(!dt.error, dt.error);
+  await page.evaluate(async ([tid, eid]) => {
+    const d = await window.__xc.eng.edits.diff(tid, eid);
+    const { editors } = await import('/src/workbench/editors.js');
+    await editors.open({ type: 'diff', id: `ai:${eid}`, title: d.title, path: d.path, original: d.original, modified: d.modified, readOnly: true }, { pinned: true });
+  }, [dt.res.turnId, dt.res.edits[0].id]);
+  await page.waitForTimeout(700);
+  const diffText = await page.evaluate(() => document.querySelector('.editor-group, #editor-part, main')?.innerText || document.body.innerText);
+  assert.match(diffText, /font-family: system-ui/, 'diff editor shows the AI change');
+  await t.shot('engine-diff-iphone');
 
   t.assertNoErrors();
   await t.close();
@@ -367,6 +493,33 @@ try {
   assert.ok(!d.error, d.error);
   assert.ok((await read(t.page, 'style.css')).includes('color: #ffffff;'));
   assert.equal(d.res.rounds, 3);
+  // unsaved editor text: the agent edits what the user sees, and undo brings back exactly that text
+  const unsaved = await t.page.evaluate(async () => {
+    const { editors } = await import('/src/workbench/editors.js');
+    const { codeEditor } = await import('/src/editor/api.js');
+    await editors.open({ type: 'file', path: 'main.js' }, { pinned: true });
+    await new Promise(r => setTimeout(r, 300));
+    codeEditor.getActive()?.insertText('// unsaved note\n');
+    await new Promise(r => setTimeout(r, 100));
+    return { dirty: codeEditor.isDirty('main.js'), text: codeEditor.getText('main.js') };
+  });
+  if (unsaved.dirty) {
+    t.mock.enqueue("<edit_file path=\"main.js\">\n<<<<<<< SEARCH\n// unsaved note\n=======\n// unsaved note (seen by the AI)\n>>>>>>> REPLACE\n</edit_file>");
+    t.mock.enqueue('Updated the note.');
+    const u = await turn(t.page, { prompt: 'update the note in main.js', mode: 'agent' });
+    assert.ok(!u.error, u.error);
+    assert.equal(u.res.edits[0].state, 'applied', 'edit applied against the unsaved editor text');
+    await t.page.waitForTimeout(300);
+    const ed = await t.page.evaluate(async () => { const { codeEditor } = await import('/src/editor/api.js'); return { dirty: codeEditor.isDirty('main.js'), text: codeEditor.getText('main.js'), disk: window.__read('main.js'), body: document.body.innerText }; });
+    assert.equal(ed.dirty, false, 'the editor reloads the AI result (no unsaved-changes conflict)');
+    assert.equal(ed.text, ed.disk);
+    assert.ok(ed.text.startsWith('// unsaved note (seen by the AI)\n'), 'AI result contains the unsaved text');
+    assert.ok(!/was changed on disk while you have unsaved changes/.test(ed.body), 'no conflict notification');
+    const rec = await t.page.evaluate(async id => { const { idbGet } = await import('/src/core/db.js'); return (await idbGet('checkpoints', id)).records[0].record.content; }, u.res.checkpointId);
+    assert.equal(rec, unsaved.text, 'checkpoint holds the live (unsaved) text');
+    await t.page.evaluate(tid => window.__xc.eng.edits.undo(tid), u.res.turnId);
+    assert.equal(await read(t.page, 'main.js'), unsaved.text, 'undo restores the text the AI started from');
+  } else console.warn('  (editor did not report unsaved changes — unsaved-text scenario skipped)');
   await t.command('xcoder.ai.testProviders');
   await t.page.waitForSelector('#quick-input-widget:not(.hidden) .quick-input-list', { timeout: 10000 });
   await t.page.waitForTimeout(300);

@@ -15,8 +15,9 @@ import { catalog } from './catalog.js';
 import { callWorker, callPuter, isTransientError } from './providers.js';
 import { createStreamFilter, formatToolResult, callSignature, TOOLS } from './protocol.js';
 import { buildSystemPrompt, continuationNote } from './prompt.js';
-import { buildEnvironment, budgetFor, estimateTokens, projectInstructions, isCasualPrompt, CHARS_PER_TOKEN } from './context.js';
+import { buildEnvironment, budgetFor, estimateTokens, projectInstructions, isCasualPrompt, CHARS_PER_TOKEN, apis } from './context.js';
 import { runTool, toolLabel } from './tools.js';
+import { verifyChanges } from './engine-verify.js';
 import { createTurn, publicEdit, summarize, turnCheckpointId } from './edits.js';
 
 export const aiLog = output.channel('X Coder AI');
@@ -25,6 +26,8 @@ const abortError = () => Object.assign(new Error('The request was cancelled.'), 
 const RESULT_RE = /(<tool_result\b[^>]*>\n?)([\s\S]*?)(\n?<\/tool_result>)/g;
 const KEEP_FULL_RESULTS = 3;
 const KEEP_FULL_ASSISTANT = 2;
+const MAX_MESSAGES = 44; // the X Coder router keeps only the newest 60 messages
+const MAX_AUTO_CHECKS = 2;
 
 let busy = 0;
 export const isBusy = () => busy > 0;
@@ -102,9 +105,43 @@ function shrinkEnv(content, maxChars) {
   });
 }
 
+/** One line per tool call of a results message ("read_file index.html (ok)"), for collapsed rounds. */
+function summarizeResults(content) {
+  const text = typeof content === 'string' ? content : (content || []).filter(p => p.type === 'text').map(p => p.text).join('\n');
+  const out = [];
+  const re = /<tool_result name="([\w-]+)"([^>]*)status="(ok|error)">/g;
+  let m;
+  while ((m = re.exec(text))) {
+    const attrs = {};
+    m[2].replace(/(\w+)="([^"]*)"/g, (s, k, v) => { attrs[k] = v; return s; });
+    const target = attrs.path ? `${attrs.path}${attrs.to ? ` → ${attrs.to}` : ''}` : attrs.from ? `${attrs.from} → ${attrs.to || ''}` : attrs.query || attrs.entry || attrs.url || attrs.command || attrs.name || '';
+    out.push(`${m[1]}${target ? ` ${target.slice(0, 120)}` : ''} (${m[3]})`);
+  }
+  return out;
+}
+
+/**
+ * Keeps the conversation under MAX_MESSAGES (routers drop the oldest messages beyond ~60, which would lose the
+ * request itself): history goes first, then the oldest assistant/results round pairs after the request are
+ * collapsed into a short "earlier steps" note inside the first message.
+ */
+function capMessageCount(out) {
+  while (out.length > MAX_MESSAGES && out[0]?.kind === 'history') out.shift();
+  while (out.length && out[0].role !== 'user') out.shift();
+  const envIdx = out.findIndex(m => m.kind === 'env');
+  if (out.length <= MAX_MESSAGES || envIdx < 0) return out;
+  const removable = out.length - MAX_MESSAGES + ((out.length - MAX_MESSAGES) % 2); // whole pairs
+  const dropped = out.splice(envIdx + 1, removable);
+  const steps = [];
+  for (const m of dropped) if (m.kind === 'results') steps.push(...summarizeResults(m.content));
+  const note = `\n\n<earlier_steps>\n${Math.ceil(removable / 2)} earlier round(s) of this task were removed to save space. Tool calls you already made: ${steps.length ? steps.slice(-80).join('; ') : '(none)'}.\nFiles may have changed since — re-read a file before editing it again.\n</earlier_steps>`;
+  out[envIdx] = { ...out[envIdx], content: mapText(out[envIdx].content, t => t.replace(/\n\n<earlier_steps>[\s\S]*?<\/earlier_steps>/, '') + note) };
+  return out;
+}
+
 /** Fits the conversation into the route's prompt budget. */
 export function fitMessages(messages, promptChars) {
-  let out = messages.map(m => ({ ...m }));
+  let out = capMessageCount(messages.map(m => ({ ...m })));
   const resultIdx = out.map((m, i) => (m.kind === 'results' ? i : -1)).filter(i => i >= 0);
   for (const i of resultIdx.slice(0, -KEEP_FULL_RESULTS)) out[i].content = compressResults(out[i].content);
   const asstIdx = out.map((m, i) => (m.kind === 'assistant' ? i : -1)).filter(i => i >= 0);
@@ -181,9 +218,45 @@ function pendingStatus(p) {
 function friendlyError(err, tried) {
   const msg = err?.message || String(err);
   const routes = tried.length > 1 ? ` (tried ${tried.join(' → ')})` : '';
-  if (/router URL is not set/i.test(msg)) return new Error(`${msg}`);
+  if (/router URL is not set/i.test(msg)) return new Error(`No AI model is available: the X Coder AI router URL is not set and you are not signed in to X Coder Cloud. Set the router URL (Settings → X Coder AI → Router Url, or the "Configure AI Router…" command) or sign in to X Coder Cloud to use Puter models.`);
   if (/Could not reach|failed to fetch|network|load failed/i.test(msg)) return Object.assign(new Error(`X Coder AI could not reach any model${routes}. Check your internet connection, or set the router URL in Settings → X Coder AI. Details: ${msg}`), { cause: err });
   return Object.assign(new Error(`${msg}${routes}`), { cause: err, status: err?.status });
+}
+
+const ACTION_RE = /\b(build|create|make|add|fix|implement|change|update|write|refactor|rename|remove|delete|replace|restyle|style|convert|improve|redesign|set ?up|generate|move|finish|complete|translate|port|optimi[sz]e|clean ?up)\b/i;
+const QUESTION_RE = /^\s*(how|what|why|when|where|which|who|explain|can you explain|could you explain|show me|tell me|is|are|does|do|should)\b/i;
+const UNAPPLIED_NOTE = 'You wrote code in your reply but did not apply it. You are in Agent mode: the user expects the project itself to change. Apply the changes now with write_file / edit_file (read files first if needed), verify them, and then give a short summary — do not paste the code again.';
+const UNAPPLIED_NOTE_EDIT = 'You wrote code in your reply but did not propose it as edits. You are in Edit mode: output the changes with write_file / edit_file (read files first if needed) so the user can review and keep them, with a one-line explanation — do not paste the code again.';
+const AUTO_CHECK_NOTE = 'The IDE checked the files you changed and found the problems above. Fix the ones your changes caused (read the files first if needed), then give your final answer. If a problem is unrelated to your work or cannot be fixed here, explain it briefly in the final answer instead of retrying.';
+
+/** A change request answered with pasted code instead of edit tools (common with weaker models). */
+export function looksLikeUnappliedCode(text, prompt) {
+  if (!ACTION_RE.test(prompt || '') || QUESTION_RE.test(prompt || '') || isCasualPrompt(prompt)) return false;
+  let big = 0;
+  const re = /^ {0,3}(`{3,}|~{3,})[^\n]*\n([\s\S]*?)\n {0,3}\1[ \t]*$/gm;
+  let m;
+  while ((m = re.exec(text || ''))) if (m[2].split('\n').length >= 8) big++;
+  return big > 0;
+}
+
+/** Runs the automatic post-edit check and reports it to the UI as a tool step. */
+async function autoCheck(turn, { runPreview, signal, emit }) {
+  const id = `auto_check_${Date.now().toString(36)}`;
+  emit({ type: 'tool', id, name: 'auto_check', label: 'Checking the changed files', state: 'running' });
+  emit({ type: 'status', text: 'Checking the changed files…' });
+  let res;
+  try {
+    const preview = runPreview ? await apis.preview() : null;
+    res = await verifyChanges(turn, { fs: workspace.fs, runPreview, preview, signal });
+  } catch (err) {
+    aiLog.warn(`Automatic check failed: ${err.message}`);
+    res = { checked: 0, problems: [], report: '', previewRan: false };
+  }
+  if (signal?.aborted) throw abortError();
+  const n = res.problems.length;
+  emit({ type: 'tool', id, name: 'auto_check', label: `Checked ${res.checked} changed file${res.checked === 1 ? '' : 's'}${res.previewRan ? ' and ran the preview' : ''}`, state: n ? 'error' : 'done', detail: n ? `${n} problem${n === 1 ? '' : 's'} found — fixing` : 'No problems found' });
+  aiLog.info(`Auto-check: ${res.checked} file(s), ${n} problem(s)${res.previewRan ? ', preview ran' : ''}`);
+  return res;
 }
 
 // ------------------------------------------------------------------ main
@@ -211,7 +284,7 @@ export async function runTurn(request = {}) {
   try {
     await Promise.race([catalog.ensureFresh(), new Promise(r => setTimeout(r, 8000))]);
     if (signal?.aborted) throw abortError();
-    const hasImages = attachments.some(a => (a.type === 'image' && a.dataUrl) || (a.type === 'file' && a.path && isImagePath(a.path) && !a.path.endsWith('.svg')));
+    const hasImages = attachments.some(a => (a.type === 'image' && a.dataUrl && !/^data:image\/svg/i.test(a.dataUrl)) || (a.type === 'file' && a.path && isImagePath(a.path) && !a.path.endsWith('.svg')));
     const routes = catalog.resolveRoutes(request.model || catalog.current(), { vision: hasImages });
     let routeIndex = 0;
     const primary = budgetFor(routes[0]);
@@ -231,13 +304,18 @@ export async function runTurn(request = {}) {
     emit({ type: 'status', text: isCasualPrompt(prompt) ? 'Thinking…' : 'Gathering context…' });
     const env = await buildEnvironment({ prompt, mode, attachments, envChars, includeOpenEditors: settings.get('xcoder.ai.includeOpenEditors', true) !== false });
     if (signal?.aborted) throw abortError();
-    const firstText = `${env.text}\n\n<user_request>\n${String(prompt).trim() || '(see the attachments)'}\n</user_request>`;
+    // a pasted wall of text must still leave room for the environment and the answer
+    const maxRequestChars = Math.max(4000, Math.floor(primary.promptChars * 0.6));
+    let requestText = String(prompt).trim() || '(see the attachments)';
+    if (requestText.length > maxRequestChars) requestText = `${requestText.slice(0, maxRequestChars)}\n…(the message was cut to fit the model's context: ${requestText.length - maxRequestChars} more characters were not sent)`;
+    const firstText = `${env.text}\n\n<user_request>\n${requestText}\n</user_request>`;
     const firstContent = env.images.length
       ? [{ type: 'text', text: firstText }, ...env.images.map(img => ({ type: 'image_url', image_url: { url: img.url } }))]
       : firstText;
     const messages = [...historyMsgs, { role: 'user', content: firstContent, kind: 'env' }];
     const signatures = new Map();
     let failingRounds = 0, stopReason = '', continuing = false, continuations = 0;
+    let autoChecks = 0, editsSinceCheck = false, previewSinceEdit = false, nudged = false, editRetries = 0;
 
     // ---- one model call with failover ----
     const callModel = async round => {
@@ -312,7 +390,27 @@ export async function runTurn(request = {}) {
         messages.push({ role: 'user', content: 'Your previous message was cut off by the output limit. Continue exactly where it stopped — do not repeat anything and do not add an introduction.', kind: 'results' });
         continue;
       }
-      if (!calls.length && !parsed.truncated) break;
+      if (!calls.length && !parsed.truncated) {
+        // Agent/Edit mode, nothing applied, but the answer is a code dump for a change request: use the edit tools.
+        if (mode !== 'ask' && !nudged && !turn.edits.length && round <= maxSteps && looksLikeUnappliedCode(parsed.text, prompt)) {
+          nudged = true;
+          aiLog.info('The reply contains code that was not applied — asking the model to use the edit tools.');
+          messages.push({ role: 'user', content: mode === 'edit' ? UNAPPLIED_NOTE_EDIT : UNAPPLIED_NOTE, kind: 'results' });
+          continue;
+        }
+        // Agent mode: check the changed files once the model says it is done; feed real problems back.
+        if (mode === 'agent' && editsSinceCheck && autoChecks < MAX_AUTO_CHECKS && round <= maxSteps) {
+          autoChecks++;
+          editsSinceCheck = false;
+          const check = await autoCheck(turn, { runPreview: !previewSinceEdit, signal, emit });
+          if (check.previewRan) previewSinceEdit = true;
+          if (check.problems.length) {
+            messages.push({ role: 'user', content: `${formatToolResult({ name: 'auto_check', ok: false, content: check.report })}\n\n${AUTO_CHECK_NOTE}`, kind: 'results' });
+            continue;
+          }
+        }
+        break;
+      }
       if (round > maxSteps) {
         stopReason = `I reached the limit of ${maxSteps} steps for one request, so I stopped here. Send "continue" to let me keep going.`;
         break;
@@ -361,8 +459,23 @@ export async function runTurn(request = {}) {
       for (const { r } of results) if (r.images?.length) images.push(...r.images);
       if (parsed.errors?.length) aiLog.warn(`Protocol: ${parsed.errors.join(' ')}`);
 
-      // Edit mode: the first edit batch ends the turn (the user reviews the staged edits).
-      if (mode === 'edit' && results.some(x => TOOLS[x.call.name]?.kind === 'edit')) break;
+      // verification bookkeeping (Agent mode auto-check)
+      let editedThisRound = false, verifiedThisRound = false;
+      for (const { call, r } of results) {
+        if (r.edit && r.edit.state === 'applied') { editsSinceCheck = true; previewSinceEdit = false; editedThisRound = true; }
+        if (call.name === 'run_preview' && r.ok !== false) { previewSinceEdit = true; verifiedThisRound = true; }
+        if (['get_problems', 'run_script', 'run_command'].includes(call.name)) verifiedThisRound = true;
+      }
+
+      // Edit mode: the first edit batch ends the turn (the user reviews the staged edits) — unless some edits
+      // failed (e.g. a SEARCH mismatch): then the model gets up to two chances to resend only those.
+      let editRetry = false;
+      if (mode === 'edit' && results.some(x => TOOLS[x.call.name]?.kind === 'edit')) {
+        const failedEdits = results.filter(x => TOOLS[x.call.name]?.kind === 'edit' && x.r.ok === false && !x.r.disabled);
+        if ((!failedEdits.length && !parsed.truncated) || editRetries >= 2 || round >= maxSteps) break;
+        editRetries++;
+        editRetry = true;
+      }
 
       // ---- loop protection ----
       let repeated = null;
@@ -381,7 +494,10 @@ export async function runTurn(request = {}) {
       const truncatedInfo = parsed.truncated ? { name: parsed.truncatedCall?.name || 'tool', path: parsed.truncatedCall?.attrs?.path || '' } : null;
       const blocks = results.map(({ call, r }) => formatToolResult({ name: call.name, attrs: call.attrs, ok: r.ok !== false, content: r.content }));
       if (parsed.errors?.length) blocks.push(`Protocol problems in your last message: ${parsed.errors.join(' ')}`);
-      let note = continuationNote({ mode, round, maxSteps, failures: results.filter(x => x.r.ok === false).length, truncated: truncatedInfo, hallucinated: parsed.hallucinated });
+      let note = continuationNote({
+        mode, round, maxSteps, failures: results.filter(x => x.r.ok === false).length, truncated: truncatedInfo, hallucinated: parsed.hallucinated,
+        editRetry, unverifiedEdits: mode === 'agent' && editedThisRound && !verifiedThisRound
+      });
       if (round === maxSteps) note += '\nThis was your last tool round: reply now with the final answer (what was done, what remains) and no tool tags.';
       const text = `${blocks.join('\n\n') || '(no tool calls were run)'}\n\n${note}`;
       const content = images.length ? [{ type: 'text', text }, ...images.map(img => ({ type: 'image_url', image_url: { url: img.url } }))] : text;

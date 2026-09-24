@@ -1,4 +1,5 @@
-// Pure Node unit tests for the X Coder agent protocol parser, SEARCH/REPLACE matcher, helpers and built-in shell.
+// Pure Node unit tests for the X Coder agent protocol parser, SEARCH/REPLACE matcher, helpers, built-in shell
+// and the router client (SSE/JSON parsing against a local HTTP server).
 // Run: node tools/test/ai-protocol.test.mjs
 import assert from 'node:assert/strict';
 import { parseAgentOutput, createStreamFilter, parseEditBlocks, formatToolResult, callSignature, parseLegacyJSON } from '../../src/ai/protocol.js';
@@ -188,6 +189,26 @@ test('streaming holds back legacy JSON until complete', () => {
   const fin = f.finish();
   assert.equal(fin.delta, 'Hello there');
 });
+test('long write_file bodies stream without rescans and the text after the close tag still appears', () => {
+  const body = Array.from({ length: 3000 }, (_, i) => `const v${i} = ${i}; // <div> ${i}`).join('\n');
+  const raw = `Writing the module.\n<write_file path="big.js">\n${body}\n</write_file>\nThe module is ready.`;
+  const t0 = Date.now();
+  const r = streamCheck(raw, 17);
+  assert.ok(Date.now() - t0 < 4000, `streaming a big body is fast (${Date.now() - t0} ms)`);
+  assert.deepEqual(names(r), ['write_file']);
+  assert.equal(r.calls[0].body, body);
+  assert.equal(r.text, 'Writing the module.\n\nThe module is ready.');
+  // the closing tag split across deltas, CRLF output and an alias tag name
+  const crlf = streamCheck('A\r\n<create_file path="x.txt">\r\nhello\r\n</create_file>\r\nB', 1);
+  assert.deepEqual(names(crlf), ['write_file']);
+  assert.equal(crlf.calls[0].body, 'hello');
+  assert.equal(crlf.text, 'A\n\nB');
+});
+test('several edit_file tags in one reply keep their own blocks', () => {
+  const r = parseAgentOutput('<edit_file path="a.js">\n<<<<<<< SEARCH\na\n=======\nA\n>>>>>>> REPLACE\n</edit_file>\n<edit_file path="b.js">\n<<<<<<< SEARCH\nb\n=======\nB\n>>>>>>> REPLACE\n<<<<<<< SEARCH\nc\n=======\n>>>>>>> REPLACE\n</edit_file>');
+  assert.deepEqual(r.calls.map(c => [c.attrs.path, c.blocks.length]), [['a.js', 1], ['b.js', 2]]);
+  assert.deepEqual(r.calls[1].blocks[1], { search: 'c', replace: '' });
+});
 test('tool-only fences are hidden while streaming', () => {
   const r = streamCheck('Reading:\n```xml\n<read_file path="a.js"/>\n```\nok', 2);
   assert.deepEqual(names(r), ['read_file']);
@@ -364,6 +385,99 @@ test('protected paths, side effects and scripts', () => {
   assert.match(sh('echo x > a.txt').output, /Redirection/);
   assert.deepEqual(sh('node main.js --flag').runScript, { path: 'main.js', args: ['--flag'] });
 });
+
+// ---- providers: the X Coder router client against a local HTTP server (SSE edge cases, JSON, errors) ----
+console.log('providers');
+const { callWorker, fitWorkerBody, isTransientError } = await import('../../src/ai/providers.js');
+const { createServer } = await import('node:http');
+async function atest(name, fn) {
+  try { await fn(); passed++; console.log(`  ✓ ${name}`); }
+  catch (err) { failed++; console.error(`  ✗ ${name}\n    ${err.stack?.split('\n').slice(0, 4).join('\n    ')}`); }
+}
+const routes = new Map();
+const server = createServer(async (req, res) => {
+  const chunks = [];
+  for await (const c of req) chunks.push(c);
+  const handler = routes.get(req.url);
+  if (!handler) { res.writeHead(404).end('{"error":"not found"}'); return; }
+  await handler(req, res, JSON.parse(Buffer.concat(chunks).toString() || '{}'));
+});
+await new Promise(r => server.listen(0, '127.0.0.1', r));
+const base = `http://127.0.0.1:${server.address().port}`;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const writeSplit = async (res, text, size) => { for (let i = 0; i < text.length; i += size) { res.write(text.slice(i, i + size)); await sleep(1); } };
+let route = 0;
+const serve = handler => { const path = `/r${++route}`; routes.set(`${path}/agent`, handler); return `${base}${path}`; };
+try {
+  await atest('SSE split mid-line with CRLF, keep-alives, multi-line data and usage', async () => {
+    const url = serve(async (req, res, body) => {
+      assert.equal(body.stream, true); assert.equal(body.allow_fallback, true); assert.equal(body.system, 'SYS');
+      res.writeHead(200, { 'content-type': 'text/event-stream' });
+      const events = [
+        ': keep-alive', '',
+        `data: ${JSON.stringify({ type: 'start', provider: 'Groq', providerId: 'groq', model: 'llama' })}`, '',
+        `data: ${JSON.stringify({ type: 'delta', text: 'Hel' })}`, '',
+        `data: ${JSON.stringify({ type: 'delta', text: 'lo <read_file path="a.js"/>' })}`, '',
+        'data: {"type":"delta",', 'data: "text":" world"}', '',
+        `data: ${JSON.stringify({ type: 'done', usage: { prompt_tokens: 7, completion_tokens: 3 }, finish_reason: 'stop', attempts: [{ provider: 'groq', ok: true }] })}`, ''
+      ].join('\r\n') + '\r\n';
+      await writeSplit(res, events, 7);
+      res.end();
+    });
+    const deltas = [], metas = [];
+    const r = await callWorker({ routerUrl: url, system: 'SYS', messages: [{ role: 'user', content: 'hi' }], onDelta: d => deltas.push(d), onMeta: m => metas.push(m) });
+    assert.equal(r.text, 'Hello <read_file path="a.js"/> world');
+    assert.equal(deltas.join(''), r.text);
+    assert.equal(r.provider, 'Groq'); assert.equal(r.model, 'llama'); assert.equal(r.finishReason, 'stop');
+    assert.deepEqual(r.usage, { prompt_tokens: 7, completion_tokens: 3 });
+    assert.ok(metas.some(m => m.provider === 'Groq'));
+  });
+  await atest('OpenAI-style SSE chunks and [DONE]', async () => {
+    const url = serve(async (req, res) => {
+      res.writeHead(200, { 'content-type': 'text/event-stream; charset=utf-8' });
+      await writeSplit(res, `data: ${JSON.stringify({ choices: [{ delta: { content: 'A' } }] })}\n\ndata: ${JSON.stringify({ choices: [{ delta: { content: 'B' }, finish_reason: 'length' }] })}\n\ndata: [DONE]\n\n`, 5);
+      res.end();
+    });
+    const r = await callWorker({ routerUrl: url, system: '', messages: [{ role: 'user', content: 'x' }] });
+    assert.equal(r.text, 'AB'); assert.equal(r.finishReason, 'length');
+  });
+  await atest('error event before any text is transient; after text it is not', async () => {
+    const early = serve(async (req, res) => { res.writeHead(200, { 'content-type': 'text/event-stream' }); res.end(`data: ${JSON.stringify({ type: 'error', error: 'Model is overloaded', status: 503 })}\n\n`); });
+    await assert.rejects(callWorker({ routerUrl: early, messages: [{ role: 'user', content: 'x' }] }), e => e.transient === true && /overloaded/.test(e.message) && isTransientError(e));
+    const late = serve(async (req, res) => { res.writeHead(200, { 'content-type': 'text/event-stream' }); res.end(`data: {"type":"delta","text":"partial"}\n\ndata: {"type":"error","error":"bad request"}\n\n`); });
+    await assert.rejects(callWorker({ routerUrl: late, messages: [{ role: 'user', content: 'x' }] }), e => e.streamed === true && e.transient === false);
+  });
+  await atest('plain JSON replies (older routers) and HTTP errors with attempts', async () => {
+    const json = serve(async (req, res) => { res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ text: 'hi there', provider: 'Gemini', providerId: 'gemini', model: 'g', stop_reason: 'MAX_TOKENS' })); });
+    const deltas = [];
+    const r = await callWorker({ routerUrl: json, messages: [{ role: 'user', content: 'x' }], onDelta: d => deltas.push(d) });
+    assert.equal(r.text, 'hi there'); assert.equal(r.finishReason, 'MAX_TOKENS'); assert.deepEqual(deltas, ['hi there']);
+    const busy = serve(async (req, res) => { res.writeHead(429, { 'content-type': 'application/json' }).end(JSON.stringify({ error: 'Too many requests', attempts: [{ provider: 'groq', ok: false }] })); });
+    await assert.rejects(callWorker({ routerUrl: busy, messages: [{ role: 'user', content: 'x' }] }), e => e.status === 429 && e.transient && e.attempts.length === 1);
+    await assert.rejects(callWorker({ routerUrl: '', messages: [{ role: 'user', content: 'x' }] }), /router URL is not set/);
+  });
+  await atest('abort cancels a stalled stream immediately; the idle timeout fails over', async () => {
+    const stall = serve(async (req, res) => { res.writeHead(200, { 'content-type': 'text/event-stream' }); res.write('data: {"type":"delta","text":"a"}\n\n'); await sleep(3000); res.end(); });
+    const ctrl = new AbortController();
+    setTimeout(() => ctrl.abort(), 100);
+    const t0 = Date.now();
+    await assert.rejects(callWorker({ routerUrl: stall, messages: [{ role: 'user', content: 'x' }], signal: ctrl.signal }), e => e.name === 'AbortError');
+    assert.ok(Date.now() - t0 < 1000);
+    await assert.rejects(callWorker({ routerUrl: stall, messages: [{ role: 'user', content: 'x' }], timeoutMs: 300 }), e => /stalled/.test(e.message) && e.status === 504);
+  });
+  await atest('images are dropped oldest-first when the body would exceed the router limit', async () => {
+    const img = `data:image/png;base64,${'A'.repeat(800000)}`;
+    const body = { system: '', messages: [
+      { role: 'user', content: [{ type: 'text', text: 'first' }, { type: 'image_url', image_url: { url: img } }] },
+      { role: 'assistant', content: 'ok' },
+      { role: 'user', content: [{ type: 'text', text: 'second' }, { type: 'image_url', image_url: { url: img } }, { type: 'image_url', image_url: { url: img } }] }
+    ] };
+    const json = fitWorkerBody(body);
+    assert.ok(json.length < 1_900_000);
+    assert.ok(!JSON.stringify(body.messages[0]).includes('image_url'), 'oldest image removed');
+    assert.equal(body.messages[2].content.filter(p => p.type === 'image_url').length, 2, 'newest images kept');
+  });
+} finally { server.close(); }
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

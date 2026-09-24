@@ -806,8 +806,9 @@ export function diffLines(a, b) {
   let i = 0, j = 0;
   while (i < n || j < m) {
     if (i < n && j < m && A[i] === B[j]) { ops.push({ t: ' ', l: A[i] }); i++; j++; }
-    else if (j < m && (i >= n || dp[i * (m + 1) + j + 1] >= dp[(i + 1) * (m + 1) + j])) ops.push({ t: '+', l: B[j++] });
-    else ops.push({ t: '-', l: A[i++] });
+    // Deletions before insertions within a change, like diff(1).
+    else if (i < n && (j >= m || dp[(i + 1) * (m + 1) + j] >= dp[i * (m + 1) + j + 1])) ops.push({ t: '-', l: A[i++] });
+    else ops.push({ t: '+', l: B[j++] });
   }
   for (let k = endA; k < a.length; k++) ops.push({ t: ' ', l: a[k] });
   return ops;

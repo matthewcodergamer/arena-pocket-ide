@@ -1,1 +1,112 @@
-/* scm styles */
+/* Source Control view (VS Code workbench.view.scm), Commits view, GitHub sign-in dialogs, X Coder Cloud. */
+
+.scm-view { position: absolute; inset: 0; display: flex; flex-direction: column; overflow: hidden; }
+.scm-view > .monaco-progress-container { position: absolute; top: 0; left: 0; right: 0; z-index: 3; }
+
+/* ---------------- commit message input + action button ---------------- */
+.scm-editor-container { flex: none; padding: 6px 12px 4px 20px; display: flex; flex-direction: column; gap: 6px; }
+.scm-editor-container.hidden { display: none; }
+.scm-editor.monaco-inputbox { align-items: stretch; border-radius: 2px; }
+.scm-editor .scm-input {
+  display: block; width: 100%; min-height: 26px; max-height: 134px; box-sizing: border-box;
+  padding: 3px 6px; resize: none; overflow-y: hidden;
+  font: inherit; font-size: 13px; line-height: 20px; color: var(--vscode-input-foreground);
+  background: transparent; border: 0; outline: none;
+}
+.scm-editor .scm-input::placeholder { color: var(--vscode-input-placeholderForeground); opacity: 1; }
+@media (pointer: coarse) {
+  .scm-editor .scm-input { font-size: 16px; line-height: 22px; min-height: 34px; padding: 5px 8px; } /* 16px stops iOS zoom */
+}
+.scm-action-button.monaco-button-dropdown { width: 100%; }
+.scm-action-button .monaco-button { min-height: 26px; }
+.scm-action-button .scm-primary { flex: 1; min-width: 0; gap: 4px; }
+.scm-action-button .scm-primary span:not(.codicon) { overflow: hidden; text-overflow: ellipsis; }
+.scm-action-button .scm-dropdown { flex: none; }
+.scm-action-button .monaco-button:disabled { opacity: .5; }
+@media (pointer: coarse) { .scm-action-button .monaco-button { min-height: 32px; } .scm-action-button .scm-dropdown { width: 36px; } }
+
+/* ---------------- banner (X Coder 5 projects) ---------------- */
+.scm-banner { flex: none; display: flex; align-items: flex-start; gap: 6px; margin: 6px 12px 0 20px; padding: 6px 8px; font-size: 12px; line-height: 17px;
+  border: 1px solid var(--vscode-inputValidation-infoBorder); background: var(--vscode-inputValidation-infoBackground); color: var(--vscode-foreground); border-radius: 2px; }
+.scm-banner.hidden { display: none; }
+.scm-banner .codicon { flex: none; margin-top: 1px; color: var(--vscode-notificationsInfoIcon-foreground); }
+.scm-banner-link, .scm-link { color: var(--vscode-textLink-foreground); cursor: pointer; text-decoration: none; }
+.scm-banner-link:hover, .scm-link:hover { text-decoration: underline; color: var(--vscode-textLink-activeForeground, var(--vscode-textLink-foreground)); }
+
+/* ---------------- welcome (no repository) ---------------- */
+.scm-welcome.view-message { flex: none; padding: 10px 20px; overflow-y: auto; }
+.scm-welcome.hidden { display: none; }
+.scm-welcome p { margin: 0 0 12px; overflow-wrap: anywhere; }
+.scm-welcome .scm-welcome-note { color: var(--vscode-descriptionForeground); font-size: 12px; line-height: 18px; }
+.scm-welcome .scm-welcome-note .codicon { font-size: 14px; vertical-align: -2px; }
+.scm-welcome .monaco-button { width: 100%; margin-bottom: 8px; }
+.scm-welcome .monaco-button:last-of-type { margin-bottom: 14px; }
+
+/* ---------------- resource list ---------------- */
+.scm-list { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; outline: none; padding-bottom: 8px; -webkit-overflow-scrolling: touch; }
+.scm-list.hidden { display: none; }
+.scm-list .monaco-list-row { padding-right: 12px; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
+.scm-list:focus-within .monaco-list-row.focused { outline: 1px solid var(--vscode-list-focusOutline); outline-offset: -1px; }
+.scm-list .monaco-list-row.focused { background: var(--vscode-list-inactiveSelectionBackground); }
+.scm-list:focus .monaco-list-row.focused { background: var(--vscode-list-activeSelectionBackground); color: var(--vscode-list-activeSelectionForeground); }
+
+.scm-group { padding-left: 4px; gap: 2px; font-weight: 400; }
+.scm-group .twistie { width: 16px; display: flex; justify-content: center; font-size: 16px; color: var(--vscode-icon-foreground); }
+.scm-group .scm-group-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
+.scm-group .monaco-count-badge { flex: none; margin-left: 6px; }
+
+.scm-resource { padding-left: 24px; gap: 0; }
+.scm-resource .scm-file-icon { flex: none; width: 16px; height: 100%; display: flex; align-items: center; justify-content: center; margin-right: 6px; }
+.scm-resource .scm-label { flex: 1; min-width: 0; display: flex; align-items: baseline; overflow: hidden; white-space: nowrap; }
+.scm-resource .scm-name { flex: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.scm-resource .scm-folder { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; margin-left: .5em; font-size: .92em; opacity: .7; }
+.scm-resource .scm-letter { flex: none; width: 14px; margin-left: 4px; text-align: center; font-size: 12px; font-weight: 400; }
+
+.scm-list .scm-actions { flex: none; display: none; gap: 0; margin-left: 4px; }
+.scm-list .monaco-list-row:hover .scm-actions, .scm-list .monaco-list-row.focused .scm-actions { display: flex; }
+.scm-list .scm-actions .action-label { width: 22px; height: 22px; }
+@media (hover: none) {
+  .scm-list .scm-actions { display: flex; }
+  .scm-list .scm-actions .action-label { width: 28px; height: 28px; }
+}
+
+/* git decorations (VS Code colors the label and the status letter) */
+.scm-resource.status-modified .scm-name, .scm-resource.status-modified .scm-letter { color: var(--vscode-gitDecoration-modifiedResourceForeground); }
+.scm-resource.status-untracked .scm-name, .scm-resource.status-untracked .scm-letter { color: var(--vscode-gitDecoration-untrackedResourceForeground); }
+.scm-resource.status-added .scm-name, .scm-resource.status-added .scm-letter { color: var(--vscode-gitDecoration-addedResourceForeground); }
+.scm-resource.status-deleted .scm-name, .scm-resource.status-deleted .scm-letter { color: var(--vscode-gitDecoration-deletedResourceForeground); }
+.scm-resource.status-deleted .scm-name { text-decoration: line-through; }
+.scm-list:focus .monaco-list-row.focused .scm-name, .scm-list:focus .monaco-list-row.focused .scm-letter { color: inherit; }
+.scm-more { padding: 6px 12px 6px 24px; font-size: 12px; color: var(--vscode-descriptionForeground); }
+
+/* ---------------- commits view ---------------- */
+.scm-commits { position: relative; min-height: 30px; padding-bottom: 4px; }
+.scm-commits > .monaco-progress-container { position: sticky; top: 0; z-index: 2; }
+.scm-commit { padding-left: 20px; padding-right: 12px; gap: 6px; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.scm-commit .scm-commit-icon { color: var(--vscode-icon-foreground); font-size: 14px; }
+.scm-commit.outgoing .scm-commit-icon { color: var(--vscode-gitDecoration-addedResourceForeground); }
+.scm-commit.incoming .scm-commit-icon { color: var(--vscode-notificationsInfoIcon-foreground); }
+.scm-commit .scm-commit-label { flex: 1; min-width: 0; display: flex; align-items: baseline; overflow: hidden; white-space: nowrap; }
+.scm-commit .scm-commit-message { flex: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.scm-commit .scm-commit-detail { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.scm-commit .scm-commit-sha { flex: none; font-family: var(--font-mono); font-size: 11px; color: var(--vscode-descriptionForeground); }
+.scm-commits-message { padding: 8px 12px 8px 20px; font-size: 12px; line-height: 18px; color: var(--vscode-descriptionForeground); overflow-wrap: anywhere; }
+.scm-commits-message.warning { color: var(--vscode-editorWarning-foreground); }
+
+/* ---------------- sign-in / cloud dialogs ---------------- */
+.scm-auth-dialog .dialog-message-body p { margin: 6px 0; }
+.scm-auth-steps { margin: 4px 0 8px; padding-left: 20px; }
+.scm-auth-steps li { margin: 4px 0; }
+.scm-auth-dialog a { color: var(--vscode-textLink-foreground); }
+.scm-auth-note { color: var(--vscode-descriptionForeground); font-size: 12px; line-height: 17px; }
+.scm-device-code {
+  margin: 10px 0; padding: 10px; text-align: center; letter-spacing: .18em;
+  font-family: var(--font-mono); font-size: 26px; font-weight: 600;
+  background: var(--vscode-textCodeBlock-background, var(--vscode-input-background)); border: 1px solid var(--vscode-widget-border); border-radius: 4px;
+  -webkit-user-select: all; user-select: all;
+}
+.xc-install-steps { margin: 6px 0 4px; padding-left: 20px; }
+.xc-install-steps li { margin: 6px 0; line-height: 19px; }
+.xc-install-steps .codicon { vertical-align: -3px; font-size: 15px; }
+.xc-install-note { color: var(--vscode-descriptionForeground); font-size: 12px; line-height: 17px; margin-top: 8px; }
+.dialog-icon.cloud .codicon, .dialog-icon.device-mobile .codicon, .dialog-icon.desktop-download .codicon { color: var(--vscode-notificationsInfoIcon-foreground); }

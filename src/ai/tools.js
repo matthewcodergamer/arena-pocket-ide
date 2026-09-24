@@ -205,7 +205,12 @@ async function searchFiles(call, ctx) {
   } catch (err) { return { ok: false, content: err.message }; }
   if (!results.length) return { ok: true, content: `No matches for "${query}"${folder.path ? ` in ${folder.path}` : ''}${call.attrs.include ? ` (include ${call.attrs.include})` : ''}.`, info: { count: 0 } };
   const byFile = new Map();
-  for (const r of results) { if (!byFile.has(r.path)) byFile.set(r.path, []); byFile.get(r.path).push(r); }
+  for (const r of results) {
+    if (!byFile.has(r.path)) byFile.set(r.path, []);
+    const list = byFile.get(r.path);
+    if (list.length && list[list.length - 1].line === r.line) continue; // several matches on one line → one row
+    list.push(r);
+  }
   const lines = [`${results.length}${results.length >= 600 ? '+' : ''} match${results.length === 1 ? '' : 'es'} in ${plural(byFile.size, 'file')}:`];
   let shown = 0;
   for (const [path, list] of byFile) {

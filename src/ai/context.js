@@ -4,7 +4,8 @@
 //   estimateTokens(textOrMessages)
 //   buildEnvironment({ prompt, mode, attachments, envChars, fs }) → { text, images: [{name, url}], files: [paths], notes }
 //   fileTree(fs, { maxEntries })          indented tree with sizes, folders collapsed past the limit
-//   rankFiles(fs, prompt, { activePath, openPaths }) → [{ path, score, size }]   relevance scoring
+//   rankFiles(fs, prompt, { activePath, openPaths, codebase }) → [{ path, score, size }]   relevance scoring
+//   projectProfile(fs) → ['Stack: …', 'Entry points: …', 'Note: …']   stack facts for the environment block
 //   projectInstructions(fs)               AGENTS.md, .github/copilot-instructions.md, .xcoder/instructions.md, CLAUDE.md
 //   prepareImage(dataUrl)                  downscales very large photos before upload
 //
@@ -157,14 +158,23 @@ const NOISE = /(^|\/)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|poetry\.lock
 /**
  * Scores every text file for relevance to the prompt.
  * Signals: files/identifiers/words mentioned in the prompt (path + content), the active file and its imports,
- * open editors, recently edited files, entry points; lock files/minified/build output are penalized.
+ * open editors, recently edited files, entry points, how many files import it (import graph) and, for
+ * whole-codebase requests, README/manifests; lock files/minified/build output are penalized.
  */
-export function rankFiles(fs, prompt, { activePath = null, activeText = null, openPaths = [], extraTerms = '' } = {}) {
+export function rankFiles(fs, prompt, { activePath = null, activeText = null, openPaths = [], extraTerms = '', codebase = false } = {}) {
   const terms = promptTerms(`${prompt}\n${extraTerms}`);
   const files = visibleEntries(fs).filter(r => r.type === 'file' && !(r.binary instanceof Blob));
   const imports = activePath ? importsOf(fs, activePath, activeText ?? fs.peekText(activePath)) : new Set();
   const recent = new Set([...files].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)).slice(0, 5).map(r => r.path));
   const open = new Set(openPaths);
+  // import graph: files many others depend on are central to the project
+  const importedBy = new Map();
+  if (files.length <= 500) {
+    for (const r of files) {
+      if (!/\.(html?|m?js|cjs|jsx|tsx?|css|scss|py|vue|svelte)$/i.test(r.path) || !r.content || r.content.length > 300000) continue;
+      for (const dep of importsOf(fs, r.path, r.content)) if (dep !== r.path) importedBy.set(dep, (importedBy.get(dep) || 0) + 1);
+    }
+  }
   const out = [];
   for (const r of files) {
     const path = r.path;
@@ -197,12 +207,85 @@ export function rankFiles(fs, prompt, { activePath = null, activeText = null, op
     if (open.has(path)) score += 5;
     if (recent.has(path)) score += 3;
     if (/^(index\.html?|main\.\w+|app\.\w+|package\.json|readme\.md|style\.css|styles\.css|script\.js)$/i.test(path)) score += 2;
+    if (codebase && /^(readme\.md|package\.json|requirements\.txt|pyproject\.toml|agents\.md)$/i.test(path)) score += 8;
+    score += Math.min(8, 2 * (importedBy.get(path) || 0));
     if (NOISE.test(path)) score -= 40;
     if (/(^|\/)(dist|build|out|coverage|vendor)\//.test(path)) score -= 10;
     if (size > 60000) score -= 5;
     out.push({ path, score, size });
   }
   return out.sort((a, b) => b.score - a.score || a.size - b.size);
+}
+
+// ------------------------------------------------------------------ project profile
+
+const LANGS = [
+  [/\.(jsx|tsx)$/i, 'JSX/TSX'], [/\.(ts|mts|cts)$/i, 'TypeScript'], [/\.(m?js|cjs)$/i, 'JavaScript'], [/\.html?$/i, 'HTML'],
+  [/\.(css|scss|sass|less)$/i, 'CSS'], [/\.py$/i, 'Python'], [/\.(md|mdx)$/i, 'Markdown'], [/\.json$/i, 'JSON'],
+  [/\.vue$/i, 'Vue'], [/\.svelte$/i, 'Svelte'], [/\.(java|kt)$/i, 'Java/Kotlin'], [/\.(c|h|cpp|hpp|cc)$/i, 'C/C++'],
+  [/\.cs$/i, 'C#'], [/\.go$/i, 'Go'], [/\.rs$/i, 'Rust'], [/\.swift$/i, 'Swift'], [/\.php$/i, 'PHP'], [/\.rb$/i, 'Ruby'],
+  [/\.(sh|bash|zsh)$/i, 'Shell'], [/\.sql$/i, 'SQL'], [/\.dart$/i, 'Dart'], [/\.lua$/i, 'Lua']
+];
+const FRAMEWORKS = [
+  ['react', 'React'], ['preact', 'Preact'], ['vue', 'Vue'], ['svelte', 'Svelte'], ['solid-js', 'Solid'], ['lit', 'Lit'],
+  ['three', 'Three.js'], ['@react-three/fiber', 'React Three Fiber'], ['phaser', 'Phaser'], ['pixi.js', 'PixiJS'], ['p5', 'p5.js'],
+  ['chart.js', 'Chart.js'], ['d3', 'D3'], ['jquery', 'jQuery'], ['alpinejs', 'Alpine.js'], ['tailwindcss', 'Tailwind CSS'],
+  ['bootstrap', 'Bootstrap'], ['firebase', 'Firebase'], ['@supabase/supabase-js', 'Supabase'], ['next', 'Next.js'],
+  ['vite', 'Vite'], ['express', 'Express'], ['fastify', 'Fastify'], ['koa', 'Koa'], ['@nestjs/core', 'NestJS'],
+  ['typescript', 'TypeScript'], ['electron', 'Electron'], ['react-native', 'React Native'], ['expo', 'Expo']
+];
+const SERVER_ONLY = new Set(['Next.js', 'Express', 'Fastify', 'Koa', 'NestJS', 'Electron', 'React Native', 'Expo']);
+const PY_SERVER = /^(flask|django|fastapi|uvicorn|tornado|aiohttp)\b/im;
+
+/**
+ * Stack facts for the environment block: languages, frameworks (package.json, requirements.txt, imports/CDN tags),
+ * entry points and warnings about things that cannot run in the browser. → string lines
+ */
+export function projectProfile(fs) {
+  const files = visibleEntries(fs).filter(r => r.type === 'file');
+  if (!files.length) return [];
+  const langCount = new Map();
+  for (const r of files) {
+    const hit = LANGS.find(([re]) => re.test(r.path));
+    if (hit) langCount.set(hit[1], (langCount.get(hit[1]) || 0) + 1);
+  }
+  const langs = [...langCount.entries()].filter(([l]) => !['Markdown', 'JSON'].includes(l) || langCount.size <= 2)
+    .sort((a, b) => b[1] - a[1]).slice(0, 5).map(([l, n]) => `${l} (${n})`);
+  const found = new Set();
+  const notes = [];
+  let scripts = [];
+  const pkg = files.find(r => r.path === 'package.json') || files.find(r => /(^|\/)package\.json$/.test(r.path) && !/node_modules/.test(r.path));
+  if (pkg && !(pkg.binary instanceof Blob)) {
+    try {
+      const j = JSON.parse(pkg.content || '{}');
+      const deps = { ...(j.dependencies || {}), ...(j.devDependencies || {}), ...(j.peerDependencies || {}) };
+      for (const [name, label] of FRAMEWORKS) if (deps[name]) found.add(label);
+      scripts = Object.keys(j.scripts || {}).slice(0, 8);
+    } catch { notes.push(`${pkg.path} is not valid JSON.`); }
+  }
+  // imports / CDN tags in the sources (projects without package.json)
+  let scanned = 0;
+  for (const r of files) {
+    if (scanned >= 60 || r.binary instanceof Blob || !/\.(html?|m?js|jsx|tsx?|vue|svelte)$/i.test(r.path)) continue;
+    scanned++;
+    const head = (r.content || '').slice(0, 6000);
+    for (const [name, label] of FRAMEWORKS) {
+      if (found.has(label)) continue;
+      const esc = name.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+      if (new RegExp(`from\\s+["']${esc}(?:/[^"']*)?["']|import\\(\\s*["']${esc}["']|require\\(\\s*["']${esc}["']\\)|https?://[^"'\\s]*/${esc}(?:@[\\w.^~-]+)?(?:[/"'?]|\\.min\\.js|\\.js)`, 'i').test(head)) found.add(label);
+    }
+  }
+  const req = files.find(r => /(^|\/)requirements\.txt$/.test(r.path));
+  if (req && PY_SERVER.test(req.content || '')) notes.push(`${req.path} lists a Python web server framework — servers cannot run in the browser; only the pure-Python logic can be executed with Pyodide.`);
+  const entries = files.map(r => r.path).filter(p => /^(index\.html?|main\.py|app\.py|main\.m?js|index\.m?js|src\/main\.(jsx?|tsx?)|src\/index\.(jsx?|tsx?)|src\/App\.(jsx|tsx))$/i.test(p)).slice(0, 6);
+  const server = [...found].filter(f => SERVER_ONLY.has(f));
+  if (server.length) notes.push(`${server.join(', ')} code needs a real Node.js server or build, which X Coder cannot run; the preview can only run the browser-side parts.`);
+  if (scripts.length) notes.push(`package.json scripts (${scripts.join(', ')}) cannot run here — there is no npm; the preview runs the sources directly.`);
+  const lines = [];
+  if (langs.length) lines.push(`Stack: ${langs.join(', ')}${found.size ? ` · ${[...found].join(', ')}` : ''}`);
+  if (entries.length) lines.push(`Entry points: ${entries.join(', ')}`);
+  for (const n of notes) lines.push(`Note: ${n}`);
+  return lines;
 }
 
 // ------------------------------------------------------------------ instructions
@@ -236,7 +319,8 @@ function blobToDataURL(blob) {
   });
 }
 
-/** Downscales large images (≥ ~1.1 MB or > 2048 px) to ≤ 1600 px JPEG so uploads stay fast on phones. */
+/** Downscales large images (≥ ~1.1 MB or > 2048 px) to ≤ 1600 px JPEG so uploads stay fast on phones;
+ *  formats models cannot read (HEIC/HEIF, BMP, TIFF…) are converted to JPEG. */
 export async function prepareImage(dataUrl, { maxSide = 1600, maxChars = 1_500_000 } = {}) {
   if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/')) return dataUrl;
   if (/^data:image\/(svg|gif)/.test(dataUrl)) return dataUrl;
@@ -245,7 +329,9 @@ export async function prepareImage(dataUrl, { maxSide = 1600, maxChars = 1_500_0
     const blob = await (await fetch(dataUrl)).blob();
     const bmp = await createImageBitmap(blob);
     const big = Math.max(bmp.width, bmp.height);
-    if (dataUrl.length <= maxChars && big <= 2048) { bmp.close?.(); return dataUrl; }
+    // models accept PNG/JPEG/GIF/WebP only — iPhone HEIC/HEIF (and anything else) is always converted
+    const standard = /^data:image\/(png|jpe?g|webp)[;,]/i.test(dataUrl);
+    if (standard && dataUrl.length <= maxChars && big <= 2048) { bmp.close?.(); return dataUrl; }
     const scale = Math.min(1, maxSide / big);
     const w = Math.max(1, Math.round(bmp.width * scale)), h = Math.max(1, Math.round(bmp.height * scale));
     const canvas = new OffscreenCanvas(w, h);
@@ -256,6 +342,15 @@ export async function prepareImage(dataUrl, { maxSide = 1600, maxChars = 1_500_0
   } catch { return dataUrl; }
 }
 export { blobToDataURL };
+
+function svgSource(dataUrl) {
+  const comma = dataUrl.indexOf(',');
+  const meta = dataUrl.slice(0, comma), data = dataUrl.slice(comma + 1);
+  try {
+    if (/;base64/i.test(meta)) return new TextDecoder().decode(Uint8Array.from(atob(data), c => c.charCodeAt(0)));
+    return decodeURIComponent(data);
+  } catch { return '(the SVG could not be decoded)'; }
+}
 
 // ------------------------------------------------------------------ environment
 
@@ -323,6 +418,7 @@ export async function buildEnvironment({ prompt = '', mode = 'agent', attachment
     `Date: ${date.toISOString().slice(0, 10)} (${date.toLocaleDateString('en-US', { weekday: 'long' })})`,
     `Mode: ${mode}`,
     `Device: ${deviceLine()}`,
+    ...(() => { try { return projectProfile(fs); } catch { return []; } })(),
     entry && fs.exists(entry) ? `Preview entry: ${entry}` : ''
   ].filter(Boolean).join('\n'));
 
@@ -383,7 +479,11 @@ export async function buildEnvironment({ prompt = '', mode = 'agent', attachment
   const attachParts = [];
   for (const a of attachments || []) {
     try {
-      if (a.type === 'image' && a.dataUrl) { images.push({ name: a.name || 'image', url: await prepareImage(a.dataUrl) }); attachParts.push(`<attachment type="image" name="${a.name || 'image'}"/> (shown below)`); }
+      if (a.type === 'image' && /^data:image\/svg/i.test(a.dataUrl || '')) {
+        // vector images are sent as their source (models only accept raster images)
+        const svg = svgSource(a.dataUrl);
+        attachParts.push(`<attachment type="svg" name="${a.name || 'image.svg'}">\n${svg.slice(0, 40000)}\n</attachment>`);
+      } else if (a.type === 'image' && a.dataUrl) { images.push({ name: a.name || 'image', url: await prepareImage(a.dataUrl) }); attachParts.push(`<attachment type="image" name="${a.name || 'image'}"/> (shown below)`); }
       else if (a.type === 'file' && a.path) {
         const p = posix.clean(a.path);
         if (isDenied(p, fs)) { notes.push(`${p} is protected and was not attached.`); continue; }
@@ -416,18 +516,19 @@ export async function buildEnvironment({ prompt = '', mode = 'agent', attachment
 
   // relevant files
   if (!casual) {
-    const ranked = rankFiles(fs, prompt, { activePath, activeText, openPaths });
+    const ranked = rankFiles(fs, prompt, { activePath, activeText, openPaths, codebase: wantCodebase });
     const remaining = envChars - used - 400;
     const projectText = ranked.reduce((n, r) => n + r.size, 0);
     const smallProject = projectText * 1.15 < remaining * 0.8 && ranked.length <= 40;
     const share = wantCodebase || smallProject ? remaining : Math.min(remaining, envChars * 0.4);
     const maxFiles = wantCodebase || smallProject ? 400 : 8;
     const blocks = [];
-    let spent = 0;
+    let spent = 0, weak = 0;
     for (const r of ranked) {
       if (blocks.length >= maxFiles || spent >= share - 500) break;
       if (included.includes(r.path)) continue;
-      if (!wantCodebase && !smallProject && r.score <= 2) break;
+      // weakly related files (entry points, recently edited…) are still useful starting points — but only a couple
+      if (!wantCodebase && !smallProject && r.score <= 2 && (r.score <= 0 || ++weak > 2)) break;
       if (r.score < -20) continue;
       const text = await liveText(fs, r.path).catch(() => null);
       if (text == null) continue;

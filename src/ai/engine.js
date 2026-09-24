@@ -1,6 +1,7 @@
 // X Coder AI engine — the contract between the chat UI (src/ai/chat*.js) and the agent engine.
 // Implemented by agent.js (loop), protocol.js (tool tags), prompt.js, context.js, tools.js, edits.js,
-// checkpoints.js, providers.js (Worker router + Puter) and catalog.js. Works headlessly (fetch + IndexedDB only).
+// checkpoints.js, providers.js (Worker router + Puter), catalog.js, engine-match.js (SEARCH/REPLACE matcher),
+// engine-shell.js (read-only run_command shell) and engine-verify.js (automatic post-edit checks). Works headlessly (fetch + IndexedDB only).
 //
 // runTurn(request) drives one user request to completion (possibly many model/tool rounds):
 //   request = {
@@ -21,6 +22,8 @@
 //     { type: 'text', delta }                                         visible markdown text (tool tags already removed)
 //     { type: 'reasoning', delta }                                    optional model reasoning summary text
 //     { type: 'tool', id, name, label, state: 'running'|'done'|'error', detail }   e.g. label 'Read src/app.js, lines 1 to 120'
+//                                                                     (name 'auto_check' = the automatic check of changed files
+//                                                                      that Agent mode runs before finishing)
 //     { type: 'edit', id, turnId, path, to?, kind: 'create'|'modify'|'delete'|'rename', added, removed, state: 'pending'|'applied'|'failed', error? }
 //     { type: 'project', id, name }                                   agent created/switched to a new project
 //     { type: 'round', index, retry? }                                a new model round started (UI may start a new text block)
@@ -35,6 +38,7 @@
 //   edits.diff(turnId, editId)    → { path, original, modified, title } for the diff editor
 //   edits.list(turnId)            → current edit records of a turn;  edits.onChange(fn) → disposer ({turnId, edits})
 //   edits.latestUndoableTurn()    → turnId of the newest turn with applied edits in this project (or null)
+//   edits.changedSince(turnId)    → paths changed again after the AI edited them (undo would discard those changes)
 //   Edit states after review: 'kept' | 'undone' | 'discarded'.
 //
 // Model catalog:
@@ -55,7 +59,7 @@ import { puterSignedIn } from '../core/puter.js';
 import { runTurn as agentRunTurn, isBusy as agentBusy, aiLog } from './agent.js';
 import { catalog as modelCatalog, DEFAULT_ROUTER } from './catalog.js';
 import { fetchWorkerJSON, cleanRouterUrl } from './providers.js';
-import { keep, undo, diff, listTurnEdits, latestUndoableTurn, editEvents } from './edits.js';
+import { keep, undo, diff, listTurnEdits, latestUndoableTurn, editEvents, changedSince } from './edits.js';
 
 export async function runTurn(request) { return agentRunTurn(request); }
 export const isBusy = () => agentBusy();
@@ -66,7 +70,8 @@ export const edits = {
   async diff(turnId, editId) { return diff(turnId, editId); },
   list(turnId) { return listTurnEdits(turnId); },
   onChange(fn) { return editEvents.on('changed', fn); },
-  latestUndoableTurn(projectId) { return latestUndoableTurn(projectId); }
+  latestUndoableTurn(projectId) { return latestUndoableTurn(projectId); },
+  changedSince(turnId) { return changedSince(turnId); }
 };
 
 export const catalog = modelCatalog;
@@ -115,16 +120,20 @@ const STATUS_ICON = { ready: 'pass', configured: 'pass', 'signed-in': 'pass', un
 /** Refreshes the catalog, probes the router and Puter; shows a summary quick pick unless opts.silent. */
 export async function testProviders({ silent = false } = {}) {
   aiLog.info('Testing AI providers…');
-  await modelCatalog.refresh({ force: true });
-  const st = modelCatalog.status();
-  let latencyMs = null, healthError = '';
-  if (st.routerUrl) {
-    const t0 = performance.now();
-    try { await fetchWorkerJSON(st.routerUrl, '/health', { timeoutMs: 10000 }); latencyMs = Math.round(performance.now() - t0); }
-    catch (err) { healthError = err.message; }
-  }
-  aiLog.info(`Router ${st.routerUrl || '(not set)'}: ${st.worker}${latencyMs != null ? ` (${latencyMs} ms)` : ''}${healthError ? ` — ${healthError}` : ''}${st.error && st.worker !== 'ready' ? ` — ${st.error}` : ''}`);
-  for (const p of st.providers) aiLog.info(`  ${p.label}: ${p.status}${p.modelCount != null ? ` · ${p.modelCount} models` : ''}${p.error ? ` · ${String(p.error).slice(0, 160)}` : ''}`);
+  let progress = null;
+  if (!silent) { try { progress = (await ui()).notify.progress('Testing AI providers…', { source: 'X Coder AI' }); } catch {} }
+  let st, latencyMs = null, healthError = '';
+  try {
+    await modelCatalog.refresh({ force: true });
+    st = modelCatalog.status();
+    if (st.routerUrl) {
+      const t0 = performance.now();
+      try { await fetchWorkerJSON(st.routerUrl, '/health', { timeoutMs: 10000 }); latencyMs = Math.round(performance.now() - t0); }
+      catch (err) { healthError = err.message; }
+    }
+  } finally { try { progress?.close?.(); } catch {} }
+  aiLog.info(`Router ${st.worker}${latencyMs != null ? ` in ${latencyMs} ms` : ''} · ${st.routerUrl || '(no URL set)'}${healthError ? ` · ${healthError}` : ''}${st.error && st.worker !== 'ready' ? ` · ${st.error}` : ''}`);
+  for (const p of st.providers.filter(x => x.source !== 'puter')) aiLog.info(`  ${p.label}: ${p.status}${p.modelCount != null ? ` · ${p.modelCount} models` : ''}${p.error ? ` · ${String(p.error).slice(0, 160)}` : ''}`);
   aiLog.info(`Puter: ${st.puter}${st.models.puter ? ` · ${st.models.puter} models` : ''}${st.puterError ? ` — ${st.puterError}` : ''}`);
   const result = { worker: st.worker, puter: st.puter, providers: st.providers, models: st.models, latencyMs, routerUrl: st.routerUrl, error: healthError || (st.worker === 'ready' ? '' : st.error) };
   if (silent) return result;
@@ -203,7 +212,8 @@ async function configureRouter(value) {
 
 async function refreshModels() {
   const { notify } = await ui();
-  await modelCatalog.refresh({ force: true });
+  const progress = notify.progress('Refreshing AI models…', { source: 'X Coder AI' });
+  try { await modelCatalog.refresh({ force: true }); } finally { try { progress?.close?.(); } catch {} }
   const st = modelCatalog.status();
   const parts = [];
   if (st.worker === 'ready') parts.push(`${st.models.worker} router model${st.models.worker === 1 ? '' : 's'}`);
@@ -219,9 +229,11 @@ async function undoLastEdits({ confirm = true } = {}) {
   if (!turnId) { notify.info('There are no X Coder AI edits to undo in this project.', { source: 'X Coder AI' }); return null; }
   const list = listTurnEdits(turnId).filter(e => e.state === 'applied' || e.state === 'kept');
   if (confirm) {
+    const later = changedSince(turnId);
     const ok = await dialogs.confirm({
       message: 'Undo the last X Coder AI edits?',
-      detail: list.length ? `This restores ${list.length} change${list.length === 1 ? '' : 's'}: ${list.slice(0, 5).map(e => e.to ? `${e.path} → ${e.to}` : e.path).join(', ')}${list.length > 5 ? '…' : ''}` : 'Files will be restored to how they were before the last AI request.',
+      detail: (list.length ? `This restores ${list.length} change${list.length === 1 ? '' : 's'}: ${list.slice(0, 5).map(e => e.to ? `${e.path} → ${e.to}` : e.path).join(', ')}${list.length > 5 ? '…' : ''}.` : 'Files will be restored to how they were before the last AI request.')
+        + (later.length ? ` ${later.join(', ')} ${later.length === 1 ? 'was' : 'were'} changed after the AI edit — those later changes will be lost too.` : ''),
       primary: 'Undo Edits'
     });
     if (!ok) return null;

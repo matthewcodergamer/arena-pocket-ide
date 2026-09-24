@@ -322,7 +322,7 @@ function scan(src, final) {
       const c = findClose(text, rawName, open.end);
       if (!c) {
         const attrs = normalizeAttrs(name, open.attrs);
-        if (!final) { out.pending = { name, attrs }; break; }
+        if (!final) { out.pending = { name, attrs, rawName, bodyAt: open.end }; break; }
         out.truncated = true;
         out.truncatedCall = { name, attrs, partialLength: text.length - open.end };
         break;
@@ -454,6 +454,9 @@ export function parseAgentOutput(raw) {
  */
 export function createStreamFilter({ onPending, minInterval = 40 } = {}) {
   let raw = '', emitted = '', lastScanLen = 0, lastScanAt = 0, pendingKey = '';
+  // Inside a long write_file/edit_file body nothing visible can change until its closing tag arrives,
+  // so rescanning is skipped (keeps streaming O(n) for big files on phones).
+  let holdTag = '', holdFrom = 0;
   const report = pending => {
     const key = pending ? `${pending.name}:${pending.attrs?.path || pending.attrs?.from || ''}` : '';
     if (key !== pendingKey) { pendingKey = key; try { onPending?.(pending || null); } catch {} }
@@ -468,12 +471,18 @@ export function createStreamFilter({ onPending, minInterval = 40 } = {}) {
     push(delta) {
       if (!delta) return '';
       raw += delta;
+      if (holdTag) {
+        const at = raw.slice(holdFrom).toLowerCase().indexOf(`</${holdTag}`);
+        if (at < 0) { holdFrom = Math.max(holdFrom, raw.length - holdTag.length - 3); return ''; }
+        holdTag = '';
+      }
       const now = Date.now();
       if (raw.length - lastScanLen < 48 && now - lastScanAt < minInterval && !/[\n>]/.test(delta)) return '';
       lastScanLen = raw.length; lastScanAt = now;
       if (LEGACY_START.test(raw)) { report({ name: 'json' }); return ''; }
       const s = scan(raw, false);
       report(s.pending);
+      if (s.pending?.rawName && s.pending.bodyAt != null) { holdTag = s.pending.rawName.toLowerCase(); holdFrom = s.pending.bodyAt; }
       return diff(visibleText(s.parts));
     },
     finish() {

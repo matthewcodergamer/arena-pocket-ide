@@ -159,9 +159,30 @@ function newEdit(turn, fields) {
   return edit;
 }
 
+/** Pre-change text of an existing text file as the AI saw it (unsaved editor text included), else undefined. */
+const liveOriginal = change => (['modify', 'delete', 'rename'].includes(change.kind) && !change.binary && typeof change.original === 'string' ? change.original : undefined);
+
+/**
+ * The AI computed its change from an open editor's unsaved text: save that buffer first, so the editor reloads
+ * the AI's result (which already contains the unsaved text) instead of reporting a conflict with the disk.
+ * If the user kept typing meanwhile, the texts differ and the editor's own conflict handling takes over.
+ */
+async function settleDirtyEditor(fs, change) {
+  if (fs !== workspace.fs || !['modify', 'rename', 'delete'].includes(change.kind) || typeof change.original !== 'string') return;
+  try {
+    const ed = await editorApiLoaded();
+    if (!ed?.isDirty?.(change.path)) return;
+    const live = ed.getText(change.path);
+    if (live == null || toLf(live) !== toLf(change.original)) return;
+    const { editors } = await import('../workbench/editors.js');
+    await editors.save(`file:${change.path}`);
+  } catch { /* never block the edit on the editor */ }
+}
+
 /** Performs one change on disk (agent mode / keep). */
 async function writeChange(fs, change) {
   const opts = { source: 'ai' };
+  await settleDirtyEditor(fs, change);
   switch (change.kind) {
     case 'create':
     case 'modify':
@@ -186,7 +207,7 @@ export async function commitChange(turn, fs, change, { signal } = {}) {
   if (turn.mode === 'agent') {
     try {
       const cp = await ensureCheckpoint(turn);
-      await checkpoints.snapshot(cp, fs, change.path);
+      await checkpoints.snapshot(cp, fs, change.path, { content: liveOriginal(change) });
       if (change.kind === 'rename') await checkpoints.snapshot(cp, fs, change.to);
       await writeChange(fs, change);
       edit.state = 'applied';
@@ -422,7 +443,7 @@ export async function keep(turnId, editId) {
         if (current !== expected) throw new Error(`"${e.path}" changed since the edit was proposed. Ask X Coder to redo it.`);
       }
       const cp = await ensureCheckpoint(turn, pid);
-      await checkpoints.snapshot(cp, fs, e.path);
+      await checkpoints.snapshot(cp, fs, e.path, { content: liveOriginal(e) });
       if (e.kind === 'rename') await checkpoints.snapshot(cp, fs, e.to);
       await writeChange(fs, e);
       e.state = 'kept';
@@ -495,6 +516,26 @@ function diffTitle(e) {
 }
 
 export function listTurnEdits(turnId) { return (turns.get(turnId)?.edits || []).map(publicEdit); }
+
+/** Files of a turn that were changed again after the AI edited them (undo would discard those changes too). */
+export function changedSince(turnId) {
+  const turn = turns.get(turnId);
+  if (!turn || turn.projectId !== workspace.id || !workspace.fs) return [];
+  const last = new Map();
+  for (const e of turn.edits) {
+    if (!['applied', 'kept'].includes(e.state) || e.binary || e.projectId !== workspace.id) continue;
+    if (e.kind === 'modify' || e.kind === 'create') last.set(e.path, e.modified);
+    else if (e.kind === 'rename') { last.delete(e.path); if (typeof e.modified === 'string') last.set(e.to, e.modified); }
+    else if (e.kind === 'delete') last.delete(e.path);
+  }
+  const out = [];
+  for (const [path, text] of last) {
+    if (typeof text !== 'string') continue;
+    const now = workspace.fs.peekText(path);
+    if (now != null && toLf(now) !== toLf(text)) out.push(path);
+  }
+  return out;
+}
 
 /** Newest turn (this session or a stored checkpoint) with applied edits in the current project. */
 export async function latestUndoableTurn(projectId = workspace.id) {

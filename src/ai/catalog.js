@@ -87,7 +87,8 @@ export function vendorOf(id = '') {
 }
 
 function versionOf(id, family) {
-  const m = new RegExp(`${family}[^0-9]{0,12}(\\d+)(?:[.-](\\d))?`, 'i').exec(id);
+  // "claude-opus-4-1" → 4.1, "claude-opus-4-20250514" → 4 (a date is not a minor version)
+  const m = new RegExp(`${family}[^0-9]{0,12}(\\d+)(?:[.-](\\d)(?!\\d))?`, 'i').exec(id);
   if (!m) return 0;
   return Number(m[1]) + (m[2] ? Number(m[2]) / 10 : 0);
 }

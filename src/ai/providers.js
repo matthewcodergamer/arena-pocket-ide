@@ -95,6 +95,21 @@ function workerMessages(messages, vision) {
   });
 }
 
+const MAX_WORKER_BODY = 1_900_000; // the X Coder router rejects bodies over 2 MB
+
+/** JSON body for the router; drops images (oldest first) when the request would exceed the size limit. */
+export function fitWorkerBody(body) {
+  let json = JSON.stringify(body);
+  for (let i = 0; i < body.messages.length && json.length > MAX_WORKER_BODY; i++) {
+    const c = body.messages[i].content;
+    if (!Array.isArray(c) || !c.some(p => p.type === 'image_url')) continue;
+    body.messages[i] = { ...body.messages[i], content: c.map(p => (p.type === 'image_url' ? { type: 'text', text: '[An image was removed to keep the request under the router size limit.]' } : p)) };
+    json = JSON.stringify(body);
+  }
+  if (json.length > MAX_WORKER_BODY) throw new ProviderError('The request is too large for the X Coder router (2 MB limit). Remove some attachments or start a new chat.', { status: 413 });
+  return json;
+}
+
 export async function callWorker({ routerUrl, system, messages, maxTokens = 8192, temperature = 0.2, provider = 'auto', model = '', vision = false, sendImages = vision, signal, timeoutMs = 120000, onDelta, onMeta, onReasoning }) {
   const base = cleanRouterUrl(routerUrl);
   if (!base) throw new ProviderError('The X Coder AI router URL is not set (Settings → X Coder AI → Router Url).', { status: 0 });
@@ -104,6 +119,7 @@ export async function callWorker({ routerUrl, system, messages, maxTokens = 8192
     provider: provider || 'auto', allow_fallback: true, stream, vision: !!vision
   };
   if (model) body.model = model;
+  const payload = fitWorkerBody(body);
   const link = linkedController(signal, timeoutMs);
   let streamed = false;
   const meta = { provider: '', providerId: '', model: '', usage: null, attempts: [], finishReason: null };
@@ -113,7 +129,7 @@ export async function callWorker({ routerUrl, system, messages, maxTokens = 8192
       res = await fetch(`${base}/agent`, {
         method: 'POST', signal: link.signal,
         headers: { 'content-type': 'application/json', accept: stream ? 'text/event-stream, application/json' : 'application/json' },
-        body: JSON.stringify(body)
+        body: payload
       });
     } catch (err) {
       if (link.timedOut) throw new ProviderError(`The AI router did not respond within ${Math.round(timeoutMs / 1000)} s.`, { status: 504, transient: true });

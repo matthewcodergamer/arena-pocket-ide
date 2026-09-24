@@ -50,7 +50,7 @@ def('run', 'run [file]', 'Run the project (or a file) in the Live Preview', asyn
   if (ctx.args[0]) {
     entry = ctx.resolve(ctx.args[0]);
     if (!ctx.fs.isFile(entry)) throw new UsageError(`${ctx.args[0]}: No such file or directory`);
-  } else entry = preview.resolveEntry?.(editors.activePath?.() || undefined);
+  } else entry = preview.resolveEntry?.(editors.activePath || undefined);
   await preview.run(entry);
   ctx.println(`${sgr.green('✓')} Opened ${entry || 'the project'} in the Live Preview`);
 }, { aliases: ['preview', 'serve'] });
